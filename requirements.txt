@@ -1,0 +1,6 @@
+numpy<2.0.0
+opencv-python
+open3d
+matplotlib
+pycolmap
+notebook
