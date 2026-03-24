@@ -12,7 +12,7 @@ import os
 from geometry import get_ned_rotation_from_yaw_pitch_roll
 
 def read_metadata_exiftool(img_path:str) -> dict:
-    cmd = ["exiftool.exe", "-j", "-G1", "-a", "-n", img_path]
+    cmd = ["exiftool", "-j", "-G1", "-a", "-n", img_path]
     out = subprocess.check_output(cmd, text=True)
     return json.loads(out)[0]
 
@@ -127,8 +127,13 @@ def convert_ned_cam_to_opengl(drone_pose:NDArray) -> NDArray:
 
     return pose
 
-def read_images_data_from_folder(data_path:str, camera_id:int=1)->List:
-    images = [file for file in Path(data_path).iterdir() if file.is_file() and ".JPG" in file.name]
+def frame_num(image_name:str):
+    return int(image_name.split("_")[-2])
+
+def read_images_data_from_folder(data_path:str, camera_id:int=1, sorting_func=frame_num)->List:
+
+    images = sorted([file for file in Path(data_path).iterdir() if file.is_file() and ".JPG" in file.name], 
+                    key=lambda x: sorting_func(x.name))
 
     if len(images) == 0:
         raise ValueError(f"No images found at {data_path}")
