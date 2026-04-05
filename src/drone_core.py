@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 from numpy.typing import NDArray
-from typing import Tuple, Optional, List, Dict
+from typing import List, Dict
 import json
 import subprocess
 from pathlib import Path
@@ -11,7 +11,7 @@ import os
 
 from geometry import get_ned_rotation_from_yaw_pitch_roll
 
-def read_metadata_exiftool(img_path:str) -> dict:
+def read_metadata_exiftool(img_path:str) -> Dict:
     cmd = ["exiftool", "-j", "-G1", "-a", "-n", img_path]
     out = subprocess.check_output(cmd, text=True)
     return json.loads(out)[0]
@@ -299,6 +299,28 @@ def get_images_from_data(images_data:List, image_src_dir)->List[NDArray]:
     
     return images
 
+def get_distance_between_camera_centers(camera1_metadata, camera2_metadata):
+    # first we get the Abslout XYZ camera center value to measure the distance
+    X1, Y1, Z1 = ecef_from_gps(lat_deg=camera1_metadata["XMP-drone-dji:GPSLatitude"],
+                               long_deg=camera1_metadata["XMP-drone-dji:GPSLongitude"],
+                               alt_m=camera1_metadata["XMP-drone-dji:AbsoluteAltitude"])
+    
+    X2, Y2, Z2 = ecef_from_gps(lat_deg=camera2_metadata["XMP-drone-dji:GPSLatitude"],
+                               long_deg=camera2_metadata["XMP-drone-dji:GPSLongitude"],
+                               alt_m=camera2_metadata["XMP-drone-dji:AbsoluteAltitude"])
+    
+    d = np.sqrt((X2 - X1)**2 + (Y2 - Y1)**2 + (Z2 - Z1)**2)
+
+    return d
+
+
+def get_rotation_diff_between_cameras(camera1_metadata, camera2_metadata):
+    yaw_diff = np.abs(camera2_metadata["XMP-drone-dji:GimbalYawDegree"] - camera1_metadata["XMP-drone-dji:GimbalYawDegree"])
+    pitch_diff = np.abs(camera2_metadata["XMP-drone-dji:GimbalPitchDegree"] - camera1_metadata["XMP-drone-dji:GimbalPitchDegree"])
+    roll_diff = np.abs(camera2_metadata["XMP-drone-dji:GimbalRollDegree"] - camera1_metadata["XMP-drone-dji:GimbalRollDegree"])
+
+    return yaw_diff, pitch_diff, roll_diff
+    
 
 if __name__ == "__main__":
     pass
