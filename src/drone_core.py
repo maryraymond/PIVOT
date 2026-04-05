@@ -72,7 +72,9 @@ def ned_from_gps(lat_deg, lon_deg, alt_m, lat0_deg=0, lon0_deg=0, alt0_m=0.0, us
         # RelativeAltitude is typically "Up from takeoff", so convert to Down:
         z_down = -(alt_m - alt0_m)
     else: 
-        z_down = (alt_m - alt0_m)
+        # Abslout is from sea level and increases up where Ned z+ve is down so
+        # we need to multiply by -ve
+        z_down = -(alt_m - alt0_m)
 
     return x_north, y_east, z_down
 
@@ -128,39 +130,59 @@ def convert_ned_cam_to_opengl(drone_pose:NDArray) -> NDArray:
     return pose
 
 def frame_num(image_name:str):
-    return int(image_name.split("_")[-2])
+    if image_name.split("_")[-1] == "D.JPG":
+       frame_num = int(image_name.split("_")[-2])
+    else:
+        frame_num = int(image_name.split("_")[-1].split(".")[0])
+    return frame_num
 
-def read_images_data_from_folder(data_path:str, camera_id:int=1, sorting_func=frame_num)->List:
+def read_images_data_from_folder(data_path:str, camera_id:int=1, 
+                                 sorting_func=frame_num, use_absloute_altitude=True)->List:
 
     images = sorted([file for file in Path(data_path).iterdir() if file.is_file() and ".JPG" in file.name], 
                     key=lambda x: sorting_func(x.name))
 
+    subfolders_available  = False
     if len(images) == 0:
-        raise ValueError(f"No images found at {data_path}")
+        print(f"No images found at {data_path} will check for sub-folders")
+
+        subfolders = sorted(folder for folder in Path(data_path).iterdir() if folder.is_dir())
+
+        images = []
+        for subfolder in subfolders:
+            images += sorted([file for file in Path(subfolder).iterdir() if file.is_file() and ".JPG" in file.name], 
+                            key=lambda x: sorting_func(x.name))
+            
+        if  len(images) == 0:
+            raise ValueError(f"No images found in folder {data_path} or subfolder {subfolders}")
+        else:
+            subfolders_available = True
+
     
     images_data = []
     ref_exif_data = read_metadata_exiftool(images[0])
     lat_0, long_0, alt_0 = get_gps_value(ref_exif_data)
 
-    image_0 = cv2.imread(images[0])
+    # image_0 = cv2.imread(images[0])
 
-    H, W = image_0.shape[:2]
+    # H, W = image_0.shape[:2]
 
     for image in images:
         exif_data = read_metadata_exiftool(image)
-        lat, long, alt = get_gps_value(exif_data)
-        x, y, z = ned_from_gps(lat, long, alt, lat_0, long_0, alt_0)
+        lat, long, alt = get_gps_value(exif_data, absolute_altitude=use_absloute_altitude)
+        x, y, z = ned_from_gps(lat, long, alt, lat_0, long_0, alt_0, use_absolute_altitude=use_absloute_altitude)
 
         Rg2f, _ = get_gimbal_rotation(exif_data)
 
         pose_g2w = get_homogenous_matrix(Rg2f, x, y, z)
         pose_c2w = convert_ned_cam_to_opengl(pose_g2w)
 
+        file_name = f"{image.parts[-2]}/{image.parts[-1]}" if subfolders_available else Path(image).name
         images_data.append({"camera_id":camera_id,
-                            "file_name": Path(image).name,
+                            "file_name": file_name,
                             "pose_c2w":pose_c2w.tolist()})
     
-    return images_data, H, W
+    return images_data
 
 
 def get_cameras_data(cal_file:str=None, sample_image_file:str=None)->List:
@@ -204,7 +226,7 @@ def get_cameras_data(cal_file:str=None, sample_image_file:str=None)->List:
 
     return cameras_data
 
-def get_poses_from_data(images_data:List, transform_world_coord=True)->List[NDArray]:
+def get_poses_from_data(images_data:List)->List[NDArray]:
 
     """ The input images data should be in the drone formate i.e: with c2w poses"""
     # check if we have c2w poses or w2c quats
@@ -217,7 +239,7 @@ def get_poses_from_data(images_data:List, transform_world_coord=True)->List[NDAr
             poses.append(np.array(image["pose_c2w"]))
     return poses
 
-def create_nerfstudio_dataset(images_data, camera_data, dataset_dir, src_images_dir, transform_world_coord=True):
+def create_nerfstudio_dataset(images_data, camera_data, dataset_dir, src_images_dir):
 
     """ The input images data should be in the drone formate i.e: with c2w poses"""
     os.makedirs(dataset_dir, exist_ok=True)
@@ -229,6 +251,16 @@ def create_nerfstudio_dataset(images_data, camera_data, dataset_dir, src_images_
     
     if "pose_c2w" not in images_data[0]:
         raise ValueError("The data provided does not have c2w pose information")
+    
+    # check if the dataset have sub-directories to be created
+    if "/" in images_data[0]["file_name"]:
+        subdirs = set()
+        for image in images_data:
+            if image["file_name"].split("/")[0] not in subdirs:
+                subdirs.add(image["file_name"].split("/")[0])
+        
+        for subdir in subdirs:
+            os.makedirs(f"{dataset_images_dir}/{subdir}", exist_ok=True)
 
     transforms = {"camera_model": camera_data["camera_type"],
                   "w": camera_data["W"],         "h": camera_data["H"],
