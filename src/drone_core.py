@@ -185,8 +185,8 @@ def read_images_data_from_folder(data_path:str, camera_id:int=1,
     return images_data
 
 
-def get_cameras_data(cal_file:str=None, sample_image_file:str=None)->List:
-    cameras_data = []
+def get_cameras_data(cal_file:str=None, sample_image_file:str=None, camera_id=1)->List:
+    cameras_data = {}
 
     if cal_file is not None:
             with open(cal_file, 'r') as f:
@@ -222,7 +222,7 @@ def get_cameras_data(cal_file:str=None, sample_image_file:str=None)->List:
     else:
         raise ValueError("Please provide either a calibration file of sample image to read the camera intrinsics")
     
-    cameras_data.append({"camera_id":1, "camera_type":camera_type, "H":H, "W":W, "fl_x":fx, "fl_y":fy, "cx": cx, "cy": cy, "k1":k1, "k2": k2, "k3":k3, "p1":p1, "p2":p2})
+    cameras_data[camera_id] = {"camera_type":camera_type, "H":H, "W":W, "fl_x":fx, "fl_y":fy, "cx": cx, "cy": cy, "k1":k1, "k2": k2, "k3":k3, "p1":p1, "p2":p2}
 
     return cameras_data
 
@@ -239,7 +239,8 @@ def get_poses_from_data(images_data:List)->List[NDArray]:
             poses.append(np.array(image["pose_c2w"]))
     return poses
 
-def create_nerfstudio_dataset(images_data, camera_data, dataset_dir, src_images_dir):
+def create_nerfstudio_dataset(images_data, cameras_data, dataset_dir, 
+                              src_images_dir, crop_larger_images=False):
 
     """ The input images data should be in the drone formate i.e: with c2w poses"""
     os.makedirs(dataset_dir, exist_ok=True)
@@ -262,25 +263,74 @@ def create_nerfstudio_dataset(images_data, camera_data, dataset_dir, src_images_
         for subdir in subdirs:
             os.makedirs(f"{dataset_images_dir}/{subdir}", exist_ok=True)
 
-    transforms = {"camera_model": camera_data["camera_type"],
-                  "w": camera_data["W"],         "h": camera_data["H"],
-                  "fl_x": camera_data["fl_x"],   "fl_y": camera_data["fl_y"],
-                  "cx": camera_data["cx"],       "cy": camera_data["cy"],
-                  "k1": camera_data["k1"],       "k2": camera_data["k2"],    "k3":camera_data["k3"],
-                  "p1": camera_data["p1"],       "p2": camera_data["p2"]}
+
+    # if we have more than one camera we might need to crop to the smallest resolution
+    if crop_larger_images:
+        target_res = {}
+        for camera_data in cameras_data.values():
+            if len(target_res) == 0:
+                target_res["H"] = int(camera_data["H"])
+                target_res["W"] = int(camera_data["W"])
+            else:
+                if int(camera_data["H"]) <= target_res["H"]:
+                    if int(camera_data["W"]) <= target_res["W"]:
+                        target_res["H"] = int(camera_data["H"])
+                        target_res["W"] = int(camera_data["W"])
+                    else:
+                        raise ValueError(f"Can't find a target crop resolution for target {target_res} and camera H={camera_data['H']}, W={camera_data['W']}")
+                elif int(camera_data["W"]) <= target_res["W"]:
+                    if int(camera_data["H"]) <= target_res["H"]:
+                        target_res["H"] = int(camera_data["H"])
+                        target_res["W"] = int(camera_data["W"])
+                    else:
+                        raise ValueError(f"Can't find a target crop resolution for target {target_res} and camera H={camera_data['H']}, W={camera_data['W']}")
+
+        print(f"Crop to min enabled, target image size is {target_res}")     
 
     frames = []
+    transforms = {}
     for image in images_data:
+
+        camera_data = cameras_data[image["camera_id"]]
 
         image_name = image["file_name"]
         dst_image = f"{dataset_images_dir}/{image_name}"
         dst_image_path = f"{Path(dataset_images_dir).name}/{image_name}"
 
-        shutil.copyfile(f"{src_images_dir}/{image_name}", dst_image)
+        if crop_larger_images and ((int(camera_data["H"]) > target_res["H"]) or (int(camera_data["W"]) > target_res["W"])):
+            x0 = int ((int(camera_data["W"]) - target_res["W"]) / 2)
+            y0 = int ((int(camera_data["H"]) - target_res["H"]) / 2)
+
+            H = target_res["H"]
+            W = target_res["W"]
+            cx = int(camera_data["cx"]) - x0
+            cy = int(camera_data["cy"]) - y0
+
+            src_img = cv2.imread(f"{src_images_dir}/{image_name}")
+            cv2.imwrite(dst_image, src_img[y0:y0+target_res["H"], x0:x0+target_res["W"]])
+        else:
+            H = camera_data["H"]
+            W = camera_data["W"]
+            cx = camera_data["cx"]
+            cy = camera_data["cy"]
+            shutil.copyfile(f"{src_images_dir}/{image_name}", dst_image)
+
+        # transforms = {"camera_model": camera_data["camera_type"],
+        #               "w": W,         "h": H,
+        #               "fl_x": camera_data["fl_x"],   "fl_y": camera_data["fl_y"],
+        #               "cx": cx,       "cy": cy,
+        #               "k1": camera_data["k1"],       "k2": camera_data["k2"],    "k3":camera_data["k3"],
+        #               "p1": camera_data["p1"],       "p2": camera_data["p2"]}
 
 
-        frame_data = {"file_path": dst_image_path,
-                    "transform_matrix":  image["pose_c2w"]}
+        frame_data = {"camera_model": camera_data["camera_type"],
+                      "w": W,         "h": H,
+                      "fl_x": camera_data["fl_x"],   "fl_y": camera_data["fl_y"],
+                      "cx": cx,       "cy": cy,
+                      "k1": camera_data["k1"],       "k2": camera_data["k2"],    "k3":camera_data["k3"],
+                      "p1": camera_data["p1"],       "p2": camera_data["p2"],
+                      "file_path": dst_image_path,
+                      "transform_matrix":  image["pose_c2w"]}
 
         frames.append(frame_data)
 

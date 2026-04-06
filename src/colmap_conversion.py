@@ -130,17 +130,17 @@ def convert_data_from_colmap(images_data_colmap:List, transform_world_coord=True
     return images_data
 
 
-def write_colmap_cameras_txt(cameras_data:List, camera_txt:str)->None:
+def write_colmap_cameras_txt(cameras_data:Dict, camera_txt:str)->None:
     colmap_cameras_header =  "# Camera list with one line of data per camera: \n\
 # CAMERA_ID, MODEL, WIDTH, HEIGHT, PARAMS[fx fy cx cy k1 k2 p1 p2] \n\
 # Number of cameras: \n\
 "
     
     cameras_data_colmap = []
-    for camera_data in cameras_data:
+    for camera_id, camera_data in cameras_data.items():
 
         #Params: fx fy cx cy k1 k2 p1 p2
-        camera_data_colmap = f"{camera_data['camera_id']} {camera_data['camera_type']} {camera_data['W']} {camera_data['H']} \
+        camera_data_colmap = f"{camera_id} {camera_data['camera_type']} {camera_data['W']} {camera_data['H']} \
 {camera_data['fl_x']} {camera_data['fl_y']} {camera_data['cx']} {camera_data['cy']} \
 {camera_data['k1']} {camera_data['k2']} {camera_data['p1']} {camera_data['p2']} \n"
 
@@ -236,7 +236,7 @@ def read_colmap_image_txt(images_txt_file:str)-> List:
 
 def read_colmap_cameras_txt(camera_txt_file:str)->List:
     with open(camera_txt_file, 'r') as f:
-            cameras_data = []
+            cameras_data = {}
             # skip the header
             for _ in range(3):
                 f.readline()
@@ -259,19 +259,18 @@ def read_colmap_cameras_txt(camera_txt_file:str)->List:
                 p1_index = 10
                 p2_index = 11
 
-                cameras_data.append({"camera_id": camera_data[camera_id_index].strip(),
-                                    "camera_type": camera_data[camera_type_index].strip(),
-                                    "W": camera_data[width_index].strip(),
-                                    "H": camera_data[height_index].strip(),
-                                    "fl_x": camera_data[fx_index].strip(),
-                                    "fl_y": camera_data[fy_index].strip(),
-                                    "cx": camera_data[cx_index].strip(),
-                                    "cy": camera_data[cy_index].strip(),
-                                    "k1": camera_data[k1_index].strip(),
-                                    "k2": camera_data[k2_index].strip(),
-                                    "k3": 0,
-                                    "p1": camera_data[p1_index].strip(),
-                                    "p2": camera_data[p2_index].strip()})
+                cameras_data[camera_data[camera_id_index].strip()] ={"camera_type": camera_data[camera_type_index].strip(),
+                                                                     "W": camera_data[width_index].strip(),
+                                                                     "H": camera_data[height_index].strip(),
+                                                                     "fl_x": camera_data[fx_index].strip(),
+                                                                     "fl_y": camera_data[fy_index].strip(),
+                                                                     "cx": camera_data[cx_index].strip(),
+                                                                     "cy": camera_data[cy_index].strip(),
+                                                                     "k1": camera_data[k1_index].strip(),
+                                                                     "k2": camera_data[k2_index].strip(),
+                                                                     "k3": 0,
+                                                                     "p1": camera_data[p1_index].strip(),
+                                                                     "p2": camera_data[p2_index].strip()}
     return cameras_data
 
 
