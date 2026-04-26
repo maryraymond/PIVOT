@@ -12,6 +12,11 @@ pip install notebook \
 && pip install opencv-python \
 && pip install scipy \
 && sudo apt update \
-&& sudo apt install -y libimage-exiftool-perl \
+&& wget https://exiftool.org/Image-ExifTool-13.57.tar.gz \
+&& tar -xzf Image-ExifTool-13.57.tar.gz \
+&& cd Image-ExifTool-13.57 \
+&& perl Makefile.PL \
+&& sudo make install \
+&& cd /workspace \
 && jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser
 "
