@@ -378,6 +378,33 @@ def get_euler_diff_between_cameras(camera1_metadata, camera2_metadata):
 
     return yaw_diff, pitch_diff, roll_diff
     
+    
+def read_images_data_from_sub_folders(data_path:str, sorting_func=frame_num, use_absloute_altitude=True)->List:
+    folders = [item.name for item in Path(data_path).iterdir() if item.is_dir()]
+
+    # read a refrence point
+    images = sorted([file for file in Path(f"{data_path}/{folders[0]}").iterdir() if file.is_file() and ".JPG" in file.name], 
+                    key=lambda x: sorting_func(x.name))
+    ref_exif_data = read_metadata_exiftool(images[0])
+    lat_0, long_0, alt_0 = get_gps_value(ref_exif_data)
+
+    #temp camera ID
+    camera_id = 1
+
+    images_per_folder = {}
+
+    for folder in folders:
+        #make sure it is not a colmap folder
+        if "COLMAP" in folder:
+            continue
+
+        full_path = f"{data_path}/{folder}"
+        folder_images = read_images_data_from_folder(full_path, use_absloute_altitude=use_absloute_altitude, 
+                                                    camera_id=camera_id, refrence_point=(lat_0, long_0, alt_0))
+        
+        images_per_folder[folder] = folder_images
+    
+    return images_per_folder
 
 if __name__ == "__main__":
     pass
