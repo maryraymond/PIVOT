@@ -140,7 +140,7 @@ def write_colmap_cameras_txt(cameras_data:Dict, camera_txt:str)->None:
     for camera_id, camera_data in cameras_data.items():
 
         #Params: fx fy cx cy k1 k2 p1 p2
-        camera_data_colmap = f"{camera_id} {camera_data['camera_type']} {camera_data['W']} {camera_data['H']} \
+        camera_data_colmap = f"{camera_id} {camera_data['camera_type']} {camera_data['w']} {camera_data['h']} \
 {camera_data['fl_x']} {camera_data['fl_y']} {camera_data['cx']} {camera_data['cy']} \
 {camera_data['k1']} {camera_data['k2']} {camera_data['p1']} {camera_data['p2']} \n"
 
@@ -260,8 +260,8 @@ def read_colmap_cameras_txt(camera_txt_file:str)->List:
                 p2_index = 11
 
                 cameras_data[camera_data[camera_id_index].strip()] ={"camera_type": camera_data[camera_type_index].strip(),
-                                                                     "W": camera_data[width_index].strip(),
-                                                                     "H": camera_data[height_index].strip(),
+                                                                     "w": camera_data[width_index].strip(),
+                                                                     "h": camera_data[height_index].strip(),
                                                                      "fl_x": camera_data[fx_index].strip(),
                                                                      "fl_y": camera_data[fy_index].strip(),
                                                                      "cx": camera_data[cx_index].strip(),

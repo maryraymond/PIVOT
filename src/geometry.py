@@ -63,6 +63,49 @@ def quat_to_homo_pose(quat:Tuple[float], T:Tuple[float]):
 
     return w2c_pose
 
+def get_yaw_pitch_roll_from_ned_rotation(R_mat):
+    rot = Rot.from_matrix(R_mat)
+    yaw, pitch, roll = rot.as_euler('ZYX', degrees=True)
+
+    return yaw.item(), pitch.item(), roll.item()
+
+def get_euler_diff(angle1, angle2):
+    diff = ((angle2 - angle1 + 180) % 360) - 180
+    return diff
+
+def get_rotation_euler_diff(r1, r2):
+    yaw1, pitch1, roll1 = get_yaw_pitch_roll_from_ned_rotation(r1)
+    yaw2, pitch2, roll2 = get_yaw_pitch_roll_from_ned_rotation(r2)
+
+    yaw_diff = get_euler_diff(yaw2, yaw1)
+    pitch_diff = get_euler_diff(pitch2, pitch1)
+    roll_diff = get_euler_diff(roll2, roll1)
+
+    return yaw_diff, pitch_diff, roll_diff
+
+def get_rotation_diff(r1, r2):
+    r_rel = r1.T @ r2
+    cos_theta = (np.trace(r_rel) - 1) / 2
+    cos_theta = np.clip(cos_theta, -1.0, 1.0)
+
+    theta = np.degrees(np.arccos(cos_theta))
+
+    return theta
+
+def get_3d_point_distance(p1, p2):
+    # first we get the Abslout XYZ camera center value to measure the distance
+    X1, Y1, Z1 = p1
+    X2, Y2, Z2 = p2
+    
+    d = np.sqrt((X2 - X1)**2 + (Y2 - Y1)**2 + (Z2 - Z1)**2)
+
+    return d
+
+def get_3d_point_xyz_diff(p1, p2):
+    X1, Y1, Z1 = p1
+    X2, Y2, Z2 = p2
+
+    return np.abs(X2 - X1), np.abs(Y2 - Y1), np.abs(Z2 - Z1)
 
 if __name__ == "__main__":
     pass

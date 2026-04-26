@@ -9,7 +9,7 @@ import math
 import shutil
 import os
 
-from geometry import get_ned_rotation_from_yaw_pitch_roll
+from geometry import get_ned_rotation_from_yaw_pitch_roll, get_3d_point_distance, get_euler_diff
 
 def read_metadata_exiftool(img_path:str) -> Dict:
     cmd = ["exiftool", "-j", "-G1", "-a", "-n", img_path]
@@ -137,7 +137,8 @@ def frame_num(image_name:str):
     return frame_num
 
 def read_images_data_from_folder(data_path:str, camera_id:int=1, 
-                                 sorting_func=frame_num, use_absloute_altitude=True)->List:
+                                 sorting_func=frame_num, use_absloute_altitude=True,
+                                 refrence_point = None)->List:
 
     images = sorted([file for file in Path(data_path).iterdir() if file.is_file() and ".JPG" in file.name], 
                     key=lambda x: sorting_func(x.name))
@@ -159,10 +160,14 @@ def read_images_data_from_folder(data_path:str, camera_id:int=1,
             subfolders_available = True
 
     
+    if refrence_point is not None:
+        lat_0, long_0, alt_0 = refrence_point
+    else:
+        ref_exif_data = read_metadata_exiftool(images[0])
+        lat_0, long_0, alt_0 = get_gps_value(ref_exif_data)
+    
     images_data = []
-    ref_exif_data = read_metadata_exiftool(images[0])
-    lat_0, long_0, alt_0 = get_gps_value(ref_exif_data)
-
+    
     # image_0 = cv2.imread(images[0])
 
     # H, W = image_0.shape[:2]
@@ -192,8 +197,8 @@ def get_cameras_data(cal_file:str=None, sample_image_file:str=None, camera_id=1)
             with open(cal_file, 'r') as f:
                 cal_data = json.load(f)
                 camera_type =  cal_data["camera_type"]
-                H = cal_data["H"]
-                W = cal_data["W"]
+                H = cal_data["h"]
+                W = cal_data["w"]
                 fx = cal_data["fx"]
                 fy = cal_data["fy"]
                 cx = cal_data["cx"]
@@ -222,7 +227,7 @@ def get_cameras_data(cal_file:str=None, sample_image_file:str=None, camera_id=1)
     else:
         raise ValueError("Please provide either a calibration file of sample image to read the camera intrinsics")
     
-    cameras_data[camera_id] = {"camera_type":camera_type, "H":H, "W":W, "fl_x":fx, "fl_y":fy, "cx": cx, "cy": cy, "k1":k1, "k2": k2, "k3":k3, "p1":p1, "p2":p2}
+    cameras_data[camera_id] = {"camera_type":camera_type, "h":H, "w":W, "fl_x":fx, "fl_y":fy, "cx": cx, "cy": cy, "k1":k1, "k2": k2, "k3":k3, "p1":p1, "p2":p2}
 
     return cameras_data
 
@@ -269,21 +274,21 @@ def create_nerfstudio_dataset(images_data, cameras_data, dataset_dir,
         target_res = {}
         for camera_data in cameras_data.values():
             if len(target_res) == 0:
-                target_res["H"] = int(camera_data["H"])
-                target_res["W"] = int(camera_data["W"])
+                target_res["h"] = int(camera_data["h"])
+                target_res["w"] = int(camera_data["w"])
             else:
-                if int(camera_data["H"]) <= target_res["H"]:
-                    if int(camera_data["W"]) <= target_res["W"]:
-                        target_res["H"] = int(camera_data["H"])
-                        target_res["W"] = int(camera_data["W"])
+                if int(camera_data["h"]) <= target_res["h"]:
+                    if int(camera_data["w"]) <= target_res["w"]:
+                        target_res["h"] = int(camera_data["h"])
+                        target_res["w"] = int(camera_data["w"])
                     else:
-                        raise ValueError(f"Can't find a target crop resolution for target {target_res} and camera H={camera_data['H']}, W={camera_data['W']}")
-                elif int(camera_data["W"]) <= target_res["W"]:
-                    if int(camera_data["H"]) <= target_res["H"]:
-                        target_res["H"] = int(camera_data["H"])
-                        target_res["W"] = int(camera_data["W"])
+                        raise ValueError(f"Can't find a target crop resolution for target {target_res} and camera H={camera_data['h']}, W={camera_data['w']}")
+                elif int(camera_data["w"]) <= target_res["w"]:
+                    if int(camera_data["h"]) <= target_res["h"]:
+                        target_res["h"] = int(camera_data["h"])
+                        target_res["w"] = int(camera_data["w"])
                     else:
-                        raise ValueError(f"Can't find a target crop resolution for target {target_res} and camera H={camera_data['H']}, W={camera_data['W']}")
+                        raise ValueError(f"Can't find a target crop resolution for target {target_res} and camera H={camera_data['h']}, W={camera_data['w']}")
 
         print(f"Crop to min enabled, target image size is {target_res}")     
 
@@ -297,20 +302,20 @@ def create_nerfstudio_dataset(images_data, cameras_data, dataset_dir,
         dst_image = f"{dataset_images_dir}/{image_name}"
         dst_image_path = f"{Path(dataset_images_dir).name}/{image_name}"
 
-        if crop_larger_images and ((int(camera_data["H"]) > target_res["H"]) or (int(camera_data["W"]) > target_res["W"])):
-            x0 = int ((int(camera_data["W"]) - target_res["W"]) / 2)
-            y0 = int ((int(camera_data["H"]) - target_res["H"]) / 2)
+        if crop_larger_images and ((int(camera_data["h"]) > target_res["h"]) or (int(camera_data["w"]) > target_res["w"])):
+            x0 = int ((int(camera_data["w"]) - target_res["w"]) / 2)
+            y0 = int ((int(camera_data["h"]) - target_res["h"]) / 2)
 
-            H = target_res["H"]
-            W = target_res["W"]
+            H = target_res["h"]
+            W = target_res["w"]
             cx = int(camera_data["cx"]) - x0
             cy = int(camera_data["cy"]) - y0
 
             src_img = cv2.imread(f"{src_images_dir}/{image_name}")
-            cv2.imwrite(dst_image, src_img[y0:y0+target_res["H"], x0:x0+target_res["W"]])
+            cv2.imwrite(dst_image, src_img[y0:y0+target_res["h"], x0:x0+target_res["w"]])
         else:
-            H = camera_data["H"]
-            W = camera_data["W"]
+            H = camera_data["h"]
+            W = camera_data["w"]
             cx = camera_data["cx"]
             cy = camera_data["cy"]
             shutil.copyfile(f"{src_images_dir}/{image_name}", dst_image)
@@ -359,15 +364,17 @@ def get_distance_between_camera_centers(camera1_metadata, camera2_metadata):
                                long_deg=camera2_metadata["XMP-drone-dji:GPSLongitude"],
                                alt_m=camera2_metadata["XMP-drone-dji:AbsoluteAltitude"])
     
-    d = np.sqrt((X2 - X1)**2 + (Y2 - Y1)**2 + (Z2 - Z1)**2)
+    d = get_3d_point_distance([X1, Y1, Z1], [X2, Y2, Z2])
 
     return d
 
 
-def get_rotation_diff_between_cameras(camera1_metadata, camera2_metadata):
-    yaw_diff = np.abs(camera2_metadata["XMP-drone-dji:GimbalYawDegree"] - camera1_metadata["XMP-drone-dji:GimbalYawDegree"])
-    pitch_diff = np.abs(camera2_metadata["XMP-drone-dji:GimbalPitchDegree"] - camera1_metadata["XMP-drone-dji:GimbalPitchDegree"])
-    roll_diff = np.abs(camera2_metadata["XMP-drone-dji:GimbalRollDegree"] - camera1_metadata["XMP-drone-dji:GimbalRollDegree"])
+def get_euler_diff_between_cameras(camera1_metadata, camera2_metadata):
+    # we will get the shortest path using the formula (diff + 180) % 360 - 180
+    
+    yaw_diff = get_euler_diff(camera2_metadata["XMP-drone-dji:GimbalYawDegree"], camera1_metadata["XMP-drone-dji:GimbalYawDegree"])
+    pitch_diff = get_euler_diff(camera2_metadata["XMP-drone-dji:GimbalPitchDegree"], camera1_metadata["XMP-drone-dji:GimbalPitchDegree"])
+    roll_diff = get_euler_diff(camera2_metadata["XMP-drone-dji:GimbalRollDegree"], camera1_metadata["XMP-drone-dji:GimbalRollDegree"])
 
     return yaw_diff, pitch_diff, roll_diff
     

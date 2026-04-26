@@ -5,7 +5,7 @@ from typing import Dict
 import os
 import cv2
 
-from drone_core import get_distance_between_camera_centers, get_rotation_diff_between_cameras
+from drone_core import get_distance_between_camera_centers, get_euler_diff_between_cameras
 
 def read_video_metadata_exiftool(video_path:str) -> dict:
     cmd = ["exiftool", "-ee", "-u", "-j", "-G3", "-a", "-n", video_path]
@@ -141,7 +141,7 @@ def process_video_to_images(video_file, image_dir,
                 save_frame = True
             else:
                 distance = get_distance_between_camera_centers(prev_saved_frame_metadata, frame_metadata)
-                yaw_diff, pitch_diff, roll_diff = get_rotation_diff_between_cameras(prev_saved_frame_metadata, frame_metadata)
+                yaw_diff, pitch_diff, roll_diff = get_euler_diff_between_cameras(prev_saved_frame_metadata, frame_metadata)
 
                 if distance >= min_camera_distanct_m or yaw_diff >= min_camera_rot_deg or \
                    pitch_diff >= min_camera_rot_deg or roll_diff >= min_camera_rot_deg:
