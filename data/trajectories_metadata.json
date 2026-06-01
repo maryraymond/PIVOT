@@ -1,0 +1,216 @@
+{
+    "orbit_inward_low": {
+        "mandatory_level": "core",
+        "motion_type": "orbit",
+        "altitude_band": "low",
+        "path_closed": true,
+        "camera_direction": "inward",
+        "lens_type": "standard_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames"
+    },
+
+    "orbit_inward_mid": {
+        "mandatory_level": "core",
+        "motion_type": "orbit",
+        "altitude_band": "mid",
+        "path_closed": true,
+        "camera_direction": "inward",
+        "lens_type": "standard_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames"
+    },
+
+    "orbit_inward_high": {
+        "mandatory_level": "core",
+        "motion_type": "orbit",
+        "altitude_band": "high",
+        "path_closed": true,
+        "camera_direction": "inward",
+        "lens_type": "standard_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames"
+    },
+
+    "traversal_forward_low": {
+        "mandatory_level": "core",
+        "motion_type": "traversal",
+        "altitude_band": "low",
+        "path_closed": false,
+        "camera_direction": "outward",
+        "lens_type": "wide_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames"
+    },
+
+    "traversal_backward_low": {
+        "mandatory_level": "core",
+        "motion_type": "traversal",
+        "altitude_band": "low",
+        "path_closed": false,
+        "camera_direction": "outward",
+        "lens_type": "wide_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames"
+    },
+
+    "traversal_left_low": {
+        "mandatory_level": "core",
+        "motion_type": "traversal",
+        "altitude_band": "low",
+        "path_closed": false,
+        "camera_direction": "outward",
+        "lens_type": "wide_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames"
+    },
+
+    "traversal_right_low": {
+        "mandatory_level": "core",
+        "motion_type": "traversal",
+        "altitude_band": "low",
+        "path_closed": false,
+        "camera_direction": "outward",
+        "lens_type": "wide_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames"
+    },
+
+    "bev_orbit_area": {
+        "mandatory_level": "core",
+        "motion_type": "bev_orbit",
+        "altitude_band": "high",
+        "path_closed": true,
+        "camera_direction": "nadir",
+        "lens_type": "standard_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames"
+    },
+
+    "rocket_upward": {
+        "mandatory_level": "core",
+        "motion_type": "vertical_ascent",
+        "altitude_band": "low_to_high",
+        "path_closed": false,
+        "camera_direction": "nadir",
+        "lens_type": "wide_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames"
+    },
+
+    "scattered_low": {
+        "mandatory_level": "core",
+        "motion_type": "scattered",
+        "altitude_band": "low",
+        "path_closed": false,
+        "camera_direction": "nadir",
+        "lens_type": "standard_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "photos"
+    },
+
+    "panorama_360_station_a": {
+        "mandatory_level": "core",
+        "motion_type": "panorama_360",
+        "altitude_band": "low_to_mid",
+        "path_closed": true,
+        "camera_direction": "outward",
+        "lens_type": "standard_fov",
+        "res": [4032, 3024],
+        "aspect_ratio": "4:3",
+        "capture_mode": "photos"
+    },
+
+    "panorama_360_station_b": {
+        "mandatory_level": "core",
+        "motion_type": "panorama_360",
+        "altitude_band": "low_to_mid",
+        "path_closed": true,
+        "camera_direction": "outward",
+        "lens_type": "standard_fov",
+        "res": [4032, 3024],
+        "aspect_ratio": "4:3",
+        "capture_mode": "photos"
+    },
+
+    "panorama_360_station_c": {
+        "mandatory_level": "core",
+        "motion_type": "panorama_360",
+        "altitude_band": "low_to_mid",
+        "path_closed": true,
+        "camera_direction": "outward",
+        "lens_type": "standard_fov",
+        "res": [4032, 3024],
+        "aspect_ratio": "4:3",
+        "capture_mode": "photos"
+    },
+
+    "traverse_loop_low": {
+        "mandatory_level": "core",
+        "motion_type": "traverse_loop",
+        "altitude_band": "low",
+        "path_closed": true,
+        "camera_direction": "outward",
+        "lens_type": "standard_fov",
+        "res": [4032, 3024],
+        "aspect_ratio": "4:3",
+        "capture_mode": "video_frames"
+    },
+    "orbit_outward": {
+        "mandatory_level": "optional",
+        "motion_type": "orbit",
+        "altitude_band": "low_to_mid",
+        "path_closed": true,
+        "camera_direction": "outward",
+        "lens_type": "standard_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames"
+    },
+
+    "bev_traverse_area": {
+        "mandatory_level": "optional",
+        "motion_type": "bev_traverse",
+        "altitude_band": "high",
+        "path_closed": false,
+        "camera_direction": "nadir",
+        "lens_type": "standard_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames"
+    },
+
+    "scattered_mid": {
+        "mandatory_level": "optional",
+        "motion_type": "scattered",
+        "altitude_band": "mid",
+        "path_closed": false,
+        "camera_direction": "nadir",
+        "lens_type": "standard_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "photos"
+    },
+
+    "scattered_high": {
+        "mandatory_level": "optional",
+        "motion_type": "scattered",
+        "altitude_band": "high",
+        "path_closed": false,
+        "camera_direction": "nadir",
+        "lens_type": "standard_fov",
+        "res": [3840, 2160],
+        "aspect_ratio": "16:9",
+        "capture_mode": "photos"
+    }
+}

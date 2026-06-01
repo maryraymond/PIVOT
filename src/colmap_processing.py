@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from enum import Enum
 
+
 from drone_core import read_images_data_from_folder, get_cameras_data
 from colmap_conversion import write_colmap_cameras_txt, write_colmap_images_txt, convert_data_to_colmap
 
@@ -38,6 +39,34 @@ def update_db_pose_prior(colmap_data_base:str, images_data:List, pose_covar:List
     db.close()
 
 
+def get_traj_name(image_name):
+    return image_name.split("/")[0]
+
+
+def get_camera_to_traj_map(db_images):
+    cam_id_map = {}
+    camera_set = set()
+    for image in db_images:
+        if image.camera_id in camera_set:
+            continue
+        else:
+            camera_set.add(image.camera_id)
+            cam_id_map[image.camera_id] = get_traj_name(image.name)
+    
+    return cam_id_map
+
+def update_cameras_type(colmap_db, folder_to_cam):
+    db = pycolmap.Database().open(colmap_db)
+    db_images = db.read_all_images()
+    db_cameras = db.read_all_cameras()
+
+    cam_id_map = get_camera_to_traj_map(db_images)
+
+    for camera in db_cameras:
+        camera.model = folder_to_cam[cam_id_map[camera.camera_id]]
+        db.update_camera(camera)
+
+
 def convert_model_txt(input_path, output_path=None):
     if output_path is None:
         output_path = input_path
@@ -59,21 +88,28 @@ def convert_model_ply(input_path, output_path=None):
     return result
 
 def run_colmap(dataset_images_dir, colmap_dir, 
-               camera_mode:CameraMode=CameraMode.SINGLE, max_num_models=3):
+               camera_mode:CameraMode=CameraMode.SINGLE, max_num_models=3,
+               camera_model="OPENCV", input_path='', camera_model_map=None):
     colmap_db = colmap_dir / "database.db"
     colmap_out_dir = colmap_dir / "sparse"
 
     os.makedirs(colmap_dir, exist_ok=True)
 
-    image_reader_options = pycolmap.ImageReaderOptions(camera_model="OPENCV")
+    image_reader_options = pycolmap.ImageReaderOptions(camera_model=camera_model)
     #Run feature extraction and force the camera to OPENCV
     pycolmap.extract_features(
         database_path=colmap_db,
         image_path=dataset_images_dir,
         camera_mode=camera_mode.value,
-        camera_model = "OPENCV",
-        reader_options=image_reader_options
+        camera_model = camera_model,
+        reader_options=image_reader_options,
+        input_path=input_path
     )
+
+    if camera_model_map is not None:
+        if camera_mode != CameraMode.PER_FOLDER:
+            raise ValueError("The camera model map modification is only supoorted for camera mode Per Foler")
+        update_cameras_type(colmap_db=colmap_db, folder_to_cam=camera_model_map)
 
     pycolmap.match_exhaustive(database_path=colmap_db)
 
@@ -92,7 +128,8 @@ def run_colmap(dataset_images_dir, colmap_dir,
 
 
 def run_colmap_with_initialization(dataset_images_dir, camera_calibration_file,
-                                   colmap_dir, camera_mode:CameraMode=CameraMode.SINGLE):
+                                   colmap_dir, camera_mode:CameraMode=CameraMode.SINGLE,
+                                   camera_model="OPENCV", camera_model_map=None):
     colmap_db = colmap_dir / "database.db"
     colmap_out_dir = colmap_dir / "sparse"
     colmap_init_dir = colmap_dir / "sparse_init"
@@ -105,15 +142,20 @@ def run_colmap_with_initialization(dataset_images_dir, camera_calibration_file,
 
     os.makedirs(colmap_dir, exist_ok=True)
 
-    image_reader_options = pycolmap.ImageReaderOptions(camera_model="OPENCV")
+    image_reader_options = pycolmap.ImageReaderOptions(camera_model=camera_model)
     #Run feature extraction and force the camera to OPENCV
     pycolmap.extract_features(
         database_path=colmap_db,
         image_path=dataset_images_dir,
         camera_mode=camera_mode.value,
-        camera_model = "OPENCV",
+        camera_model = camera_model,
         reader_options=image_reader_options
     )
+
+    if camera_model_map is not None:
+        if camera_mode != CameraMode.PER_FOLDER:
+            raise ValueError("The camera model map modification is only supoorted for camera mode Per Foler")
+        update_cameras_type(colmap_db=colmap_db, folder_to_cam=camera_model_map)
 
     pycolmap.match_exhaustive(database_path=colmap_db)
 
@@ -152,7 +194,8 @@ def run_colmap_with_initialization(dataset_images_dir, camera_calibration_file,
 
 
 def pose_prior_mapping(database_path, image_path, 
-                       output_path, max_num_models=3):
+                       output_path, max_num_models=3,
+                       input_path=''):
     os.makedirs(output_path, exist_ok=True)
 
     cmd = ["colmap", "pose_prior_mapper", 
@@ -160,6 +203,9 @@ def pose_prior_mapping(database_path, image_path,
               "--image_path", str(image_path),
               "--output_path", str(output_path), 
               "--Mapper.max_num_models", str(max_num_models)]
+    if input_path != '':
+        cmd.append("--input_path")
+        cmd.append(str(input_path))
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -168,20 +214,26 @@ def pose_prior_mapping(database_path, image_path,
 
 def run_colmap_with_soft_priors(dataset_images_dir, colmap_dir, max_num_models=3,
                                 camera_mode:CameraMode=CameraMode.SINGLE, pos_var = None,
-                                update_positions=True, cartesian_system=True):
+                                update_positions=True, cartesian_system=True, camera_model="OPENCV",
+                                input_path='', sparse_dir_name="sparse", camera_model_map=None):
     colmap_db = colmap_dir / "database.db"
-    colmap_out_dir = colmap_dir / "sparse"
+    colmap_out_dir = colmap_dir / sparse_dir_name
     os.makedirs(colmap_dir, exist_ok=True)
 
-    image_reader_options = pycolmap.ImageReaderOptions(camera_model="OPENCV")
+    image_reader_options = pycolmap.ImageReaderOptions(camera_model=camera_model)
     #Run feature extraction and force the camera to OPENCV
     pycolmap.extract_features(
         database_path=colmap_db,
         image_path=dataset_images_dir,
         camera_mode=camera_mode.value,
-        camera_model = "OPENCV",
+        camera_model = camera_model,
         reader_options=image_reader_options
     )
+
+    if camera_model_map is not None:
+        if camera_mode != CameraMode.PER_FOLDER:
+            raise ValueError("The camera model map modification is only supoorted for camera mode Per Foler")
+        update_cameras_type(colmap_db=colmap_db, folder_to_cam=camera_model_map)
 
     #Run exhaustive matcher
     pycolmap.match_exhaustive(database_path=colmap_db)
@@ -198,7 +250,8 @@ def run_colmap_with_soft_priors(dataset_images_dir, colmap_dir, max_num_models=3
 
     # run the pose prior mapping                    
     res = pose_prior_mapping(colmap_db, dataset_images_dir, 
-                             colmap_out_dir, max_num_models=max_num_models)
+                             colmap_out_dir, max_num_models=max_num_models,
+                             input_path=input_path)
     print(res.stderr)
     print(res.stdout)
 

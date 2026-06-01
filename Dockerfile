@@ -102,6 +102,31 @@ RUN git clone --branch 3.13.0 https://github.com/colmap/colmap.git --single-bran
     cd ../.. && \
     rm -rf colmap
 
+
+# Drone docker specific
+# Install Python packages
+RUN python3.10 -m  pip install --no-cache-dir \
+    notebook \
+    pycolmap==3.13 \
+    opencv-python-headless \
+    scipy \
+    viser==1.0.27 \
+    plyfile \
+    plotly \
+    openpyxl
+
+# Install ExifTool
+WORKDIR /tmp
+
+RUN wget https://sourceforge.net/projects/exiftool/files/Image-ExifTool-13.58.tar.gz \
+    && tar -xzf Image-ExifTool-13.58.tar.gz \
+    && cd Image-ExifTool-13.58 \
+    && perl Makefile.PL \
+    && make install \
+    && cd / \
+    && rm -rf /tmp/Image-ExifTool-13.58* 
+
+
 # Create non root user and setup environment.
 RUN useradd -m -d /home/user -g root -G sudo -u ${USER_ID} user
 RUN usermod -aG sudo user
@@ -168,6 +193,8 @@ RUN python3.10 -m pip install --no-cache-dir --no-build-isolation git+https://gi
 #     python3.10 -m pip install --no-cache-dir -e . && \
 #     cd ..
 
+
+    
 # Change working directory
 WORKDIR /workspace
 

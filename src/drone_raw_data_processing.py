@@ -8,14 +8,29 @@ import numpy as np
 
 from drone_video import process_video_to_images
 from drone_core import (get_cameras_data,
-                        read_images_data_from_sub_folders)
+                        read_images_data_from_sub_folders, 
+                        frame_num)
 
-from colmap_conversion import read_colmap_cameras_txt, read_colmap_image_txt, convert_data_from_colmap
+from colmap_conversion import (read_colmap_cameras_txt, 
+                               read_colmap_image_txt, 
+                               convert_data_from_colmap,
+                               get_colmap_registered_images_stat,
+                               get_colmap_number_points)
+
 from colmap_processing import run_colmap_with_soft_priors, CameraMode
 from geometry import (get_rotation_euler_diff,
                       get_rotation_diff,
                       get_3d_point_distance,
                       get_3d_point_xyz_diff)
+
+from camera_utils import (get_diag_fov_fe, 
+                          get_vertical_fov_fe, 
+                          get_horizontal_fov_fe, 
+                          get_diag_fov, 
+                          get_horizontal_fov, 
+                          get_vertical_fov)
+
+
 
 class RawDataProcessingPipeline():
     
@@ -51,7 +66,8 @@ class RawDataProcessingPipeline():
     def config_processing_pipeline(self, copy_images=True, run_colmap=True, copy_point_cloud=True, 
                                    transform_world_coord=False, add_statistics=True, add_camera_center_distance_error=True,
                                    add_camera_center_components_error=True, add_camera_rotation_angle_error=True, add_camera_rotation_euler_error=True,
-                                   min_distance_m=0.3, min_rot_degree=10, pos_covariance=[6, 6, 6], max_num_models=4):
+                                   min_distance_m=0.3, min_rot_degree=10, pos_covariance=[6, 6, 6], max_num_models=4, fov_cal_colmap=True,
+                                   wfov_as_fisheye=False):
         self.min_distance_m = min_distance_m
         self.min_rot_degree = min_rot_degree
         self.pos_covariance = pos_covariance
@@ -65,6 +81,8 @@ class RawDataProcessingPipeline():
         self.add_camera_rotation_angle_error = add_camera_rotation_angle_error
         self.add_camera_rotation_euler_error = add_camera_rotation_euler_error
         self.add_statistics = add_statistics
+        self.fov_cal_colmap = fov_cal_colmap
+        self.wfov_as_fisheye = wfov_as_fisheye
     
     def configure_scene(self, scene_raw_dir, scene_processed_dir,  scene_description_file_name="traj_description.json",
                         scene_processed_json_file_name="scene_data.json", calibration_files_path="/code/data/",
@@ -88,6 +106,10 @@ class RawDataProcessingPipeline():
             trajectory_name = trajectory_path.name.split('.')[0]
         
         return trajectory_name
+    
+    @staticmethod
+    def _get_frame_name(frame_index):
+        return f"frame_{frame_index:06d}.JPG"
         
     def populate_trajectories_basic_data(self):
         # populate scene description
@@ -104,20 +126,27 @@ class RawDataProcessingPipeline():
                 continue
             
             if trajectory_name in trajectories_description:
-                self.scene_data["trajectories"][trajectory_name]={"description":trajectories_description[trajectory_name]["description"],
-                                            "camera_direction":trajectories_description[trajectory_name]["camera_direction"]}
+                self.scene_data["trajectories"][trajectory_name] = {}
+                for info_tag in trajectories_description[trajectory_name].keys():
+                    self.scene_data["trajectories"][trajectory_name][info_tag] = trajectories_description[trajectory_name][info_tag]
             else:
                 raise ValueError(f"Missing description for trajectory {trajectory_name}")
             
-            if trajectory.is_dir():
-                # those are images
-                self.scene_data["trajectories"][trajectory_name]["source_type"] = "images" 
-            elif trajectory.is_file() and ".MP4" in trajectory.name:
-                self.scene_data["trajectories"][trajectory_name]["source_type"] = "video" 
-                self.scene_data["trajectories"][trajectory_name]["sampling_min_distance_m"] = self.min_distance_m
-                self.scene_data["trajectories"][trajectory_name]["sampling_min_rotation_degree"] = self.min_rot_degree
+            if trajectory.is_file() and ".MP4" in trajectory.name:
+                self.scene_data["trajectories"][trajectory_name]["sampling_method"] = "distance_and_rot"
+                self.scene_data["trajectories"][trajectory_name]["sample_details"] = {
+                    "min_distance_m": self.min_distance_m,
+                    "min_rotation_degree": self.min_rot_degree
+                } 
 
-        
+
+    def copy_image_dir(self, trajectory, dst_dir):
+        images = sorted([image.name for image in Path(trajectory).iterdir() if image.is_file()], key=lambda x:frame_num(x))
+        for i, image in enumerate(images):
+            dst_name = self._get_frame_name(i)
+            shutil.copyfile(src=f"{trajectory}/{image}", dst= f"{dst_dir}/{dst_name}")
+
+
     def copy_trajectories_images(self):
         # We will loop over all the trajectories, if the type is folder it means those are images
         # and we will copy them and add the coresponding info to the output dict
@@ -137,7 +166,7 @@ class RawDataProcessingPipeline():
             if trajectory.is_dir():
                 # those are images
                 print("processing images")
-                shutil.copytree(str(trajectory), dst_dir, dirs_exist_ok=True)
+                self.copy_image_dir(trajectory, dst_dir)
                 
             elif trajectory.is_file() and ".MP4" in trajectory.name:
                 # this is a video
@@ -145,7 +174,8 @@ class RawDataProcessingPipeline():
                 _, _ = process_video_to_images(video_file=trajectory, image_dir=dst_dir,
                                                min_camera_distanct_m=self.min_distance_m, 
                                                min_camera_rot_deg=self.min_rot_degree,
-                                               debug_prints=self.debug_prints)
+                                               debug_prints=self.debug_prints,
+                                               frame_name_fn=self._get_frame_name)
                                             
     def populate_colors_for_trajectories(self):
         
@@ -161,9 +191,65 @@ class RawDataProcessingPipeline():
 
             self.scene_data["trajectories"][trajectory_name]["color_name"] = color[0]
             self.scene_data["trajectories"][trajectory_name]["color_value"] = color[1]
+    
+    # @staticmethod
+    #todo needs fixing and change to a static method
+    def _get_calibration_file_name(self, trajectory_description):
+        calibration_name_parts = []
+        if "video" in trajectory_description["capture_mode"]:
+            calibration_name_parts.append("video_camera_")
+        else:
+            calibration_name_parts.append("images_camera_")
         
+        if trajectory_description["aspect_ratio"] == "16:9":
+            calibration_name_parts.append("16_9_")
+        elif trajectory_description["aspect_ratio"] == "4:3":
+            calibration_name_parts.append("4_3_")
+        else:
+            raise ValueError(f"Error unsupported aspect ratio of {trajectory_description['aspect_ratio']}")
         
+        if "w" in trajectory_description["lens_type"]:
+            calibration_name_parts.append("WFOV_")
+
+        calibration_name_parts.append("calibration.json")
+
+        return "".join(calibration_name_parts)
+    
+    def get_traj_to_camera_type_map(self):
+        with open(self.scene_description_file, 'r') as f:
+            traj_data = json.load(f)
+
+        traj_to_camera = {}
+        for traj in traj_data.keys():
+            if "w" in traj_data[traj]["lens_type"]:
+                traj_to_camera[traj] = "OPENCV_FISHEYE"
+            else:
+                traj_to_camera[traj] = "OPENCV"
+        
+        return traj_to_camera
+
     def populate_camera_intrinsic_calibration(self):
+        # populate scene description
+        with open(self.scene_description_file, "r") as f:
+                trajectories_description = json.load(f)
+
+        for trajectory in self.trajectories:
+
+            trajectory_name = self._get_trajectory_name(trajectory)
+
+            if trajectory_name is None:
+                continue
+                
+            if trajectory_name in trajectories_description:
+                calibration_file_name = self._get_calibration_file_name(trajectories_description[trajectory_name])
+                cal_file = f"{self.calibration_files_path}/{calibration_file_name}"
+                camera_calibration = get_cameras_data(cal_file=cal_file, 
+                                                    camera_id = 1)[1]
+                self.scene_data["trajectories"][trajectory_name]["camera_intrinsic_calibration"] = camera_calibration
+            else:
+                raise ValueError(f"Missing description for trajectory {trajectory_name}")
+                  
+    def populate_camera_fov_calibration(self):
         # populate scene description
         with open(self.scene_description_file, "r") as f:
                 trajectories_description = json.load(f)
@@ -179,10 +265,15 @@ class RawDataProcessingPipeline():
                 cal_file = f"{self.calibration_files_path}/{trajectories_description[trajectory_name]['calibration_file']}"
                 camera_calibration = get_cameras_data(cal_file=cal_file, 
                                                     camera_id = 1)[1]
-                self.scene_data["trajectories"][trajectory_name]["camera_intrinsic_calibration"] = camera_calibration
+                fov_h, fov_v, fov_diag = self.get_camera_fov_from_intrincic(camera_calibration)
+                
             else:
                 raise ValueError(f"Missing description for trajectory {trajectory_name}")
+                fov_h, fov_v, fov_diag = 0, 0, 0
             
+            self.scene_data["trajectories"][trajectory_name]["fov_h"] = fov_h
+            self.scene_data["trajectories"][trajectory_name]["fov_v"] = fov_v
+            self.scene_data["trajectories"][trajectory_name]["fov_diag"] = fov_diag
         
     def find_reconstruction_with_max_images(self):
         # find the best reconstruction
@@ -208,6 +299,48 @@ class RawDataProcessingPipeline():
         
         return seleceted_reonstrcution, max_images_number
 
+
+    def get_camera_fov_from_intrincic(self, intrinsic):
+
+        w = float(intrinsic["w"])
+        h = float(intrinsic["h"])
+        fx = float(intrinsic["fl_x"])
+        fy = float(intrinsic["fl_y"])
+
+        if intrinsic["camera_type"] == "OPENCV_FISHEYE":
+            fov_h = get_horizontal_fov_fe(W=w, fx=fx, degrees=True)
+            fov_v = get_vertical_fov_fe(H=h, fy=fy, degrees=True)
+            fov_diag = get_diag_fov_fe(W=w, H=h, fx=fx, fy=fy, cx=None, cy=None, degrees=True)
+
+        elif intrinsic["camera_type"] == "OPENCV":
+            fov_h = get_horizontal_fov(W=w, fx=fx)
+            fov_v = get_vertical_fov(H=h, fy=fy)
+            fov_diag = get_diag_fov(W=w, H=h, fx=fx, fy=fy, degrees=True)
+        else:
+            raise ValueError(f"Error: Unsupported camera type {intrinsic['camera_type']}")
+        
+        return fov_h, fov_v,  fov_diag
+    
+    def populate_camera_fov_colmap(self, colmap_images_data_dict, colmap_cameras_data):
+
+        for trajectory in self.trajectories:
+
+            trajectory_name = self._get_trajectory_name(trajectory)
+
+            if trajectory_name is None:
+                continue
+                
+            sample_frame = next((k for k in colmap_images_data_dict.keys() if k.startswith(trajectory_name)), None)
+            if sample_frame is not None:
+                colmap_intrinsics = colmap_cameras_data[colmap_images_data_dict[sample_frame]["camera_id"]]
+                fov_h, fov_v, fov_diag = self.get_camera_fov_from_intrincic(colmap_intrinsics)
+            else:
+                colmap_intrinsics = None
+                fov_h, fov_v, fov_diag = 0, 0, 0
+
+            self.scene_data["trajectories"][trajectory_name]["fov_h"] = fov_h
+            self.scene_data["trajectories"][trajectory_name]["fov_v"] = fov_v
+            self.scene_data["trajectories"][trajectory_name]["fov_diag"] = fov_diag
 
     def populate_camera_intrinsic_colmap(self, colmap_images_data_dict, colmap_cameras_data):
 
@@ -382,9 +515,13 @@ class RawDataProcessingPipeline():
             self.copy_trajectories_images()
 
         if self.run_colmap:
+            if self.wfov_as_fisheye:
+                traj_camera_map = self.get_traj_to_camera_type_map()
+            else:
+                traj_camera_map = None
             run_colmap_with_soft_priors(dataset_images_dir=Path(self.scene_processed_dir), colmap_dir=Path(self.scene_colmap),
                                         pos_var=self.pos_covariance, update_positions=True, cartesian_system=True,
-                                        camera_mode=CameraMode.PER_FOLDER, max_num_models=self.max_num_models)
+                                        camera_mode=CameraMode.PER_FOLDER, max_num_models=self.max_num_models, camera_model_map=traj_camera_map)
             
         # Get the best colmap reconstrcution and read the data
         colmap_spares, registered_images = self.find_reconstruction_with_max_images()
@@ -392,12 +529,19 @@ class RawDataProcessingPipeline():
 
         colmap_cameras_txt = colmap_spares/"cameras.txt"
         colmap_images_txt = colmap_spares/"images.txt"
+        colmap_points_txt = colmap_spares/"points3D.txt"
         colmap_point_cloud_ply = colmap_spares/"sparse_model.ply"
 
         colmap_cameras_data = read_colmap_cameras_txt(colmap_cameras_txt)
         colmap_images_data = read_colmap_image_txt(colmap_images_txt)
         colmap_images_data = convert_data_from_colmap(colmap_images_data, self.transform_world_coord)
         colmap_images_data_dict = {data["file_name"]:data for data in  colmap_images_data}
+
+        # Populate the FOV info
+        if self.fov_cal_colmap:
+            self.populate_camera_fov_colmap(colmap_images_data_dict, colmap_cameras_data)
+        else: 
+            self.populate_camera_fov_calibration()
 
         # populate the camera intrinsics from calibration
         self.populate_camera_intrinsic_calibration()
@@ -409,5 +553,13 @@ class RawDataProcessingPipeline():
             self.populate_pointcloud(colmap_point_cloud_ply)
 
         self.populate_frames_data(colmap_images_data_dict)
+
+        colmap_frames, per_image_obser = get_colmap_registered_images_stat(colmap_images_txt)
+
+        self.scene_data["colmap_reg_frames_number"] = colmap_frames
+        self.scene_data["colmap_per_image_observation"] = per_image_obser
+
+        number_points = get_colmap_number_points(colmap_points_txt)
+        self.scene_data["pointcloud_number"] = number_points
         
         self.save_scene_data_file()

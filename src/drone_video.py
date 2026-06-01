@@ -95,7 +95,7 @@ def process_video_to_images(video_file, image_dir,
                             frame_step=1, max_frame_number=None, use_constant_step=False, 
                             use_camera_movement=True, min_camera_distanct_m=0.3, min_camera_rot_deg=10, 
                             use_prev_if_value_missing=False, assume_missing_zero=True,
-                            write_standard_gps=True, debug_prints=True):
+                            write_standard_gps=True, debug_prints=True, frame_name_fn=None):
     os.makedirs(image_dir, exist_ok=True)
 
     cap = cv2.VideoCapture(video_file)
@@ -151,7 +151,12 @@ def process_video_to_images(video_file, image_dir,
 
         # We read all the meta data to keep track of missing params but only write when needed
         if save_frame:
-            frame_filename = f"{image_dir}/frame_{frame_index:06d}.JPG"
+            if frame_name_fn is None:
+                file_name = "frame_{frame_index:06d}.JPG"
+            else:
+                file_name = frame_name_fn(frame_index)
+                
+            frame_filename = f"{image_dir}/{file_name}"
             cv2.imwrite(frame_filename, frame)
             # Write the gimble meta data
             write_all_drone_tags(frame_metadata, frame_filename)

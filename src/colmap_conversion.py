@@ -1,7 +1,11 @@
 import numpy as np
 from numpy.typing import NDArray
-from typing import Tuple, Optional, List, Dict
+from typing import Tuple, Optional, List, Dict, Any
 import sqlite3
+import re
+import subprocess
+from pathlib import Path
+from typing import Any
 
 from geometry import quat_to_homo_pose, homo_pose_to_quat
 
@@ -192,6 +196,30 @@ def write_colmap_images_txt(images_data:List, colmap_database:str, images_txt:st
             wf.write(colmap_images_header + "".join(images_data_colmap))
 
 
+def get_colmap_number_points(points_txt_file:str)->int:
+    with open(points_txt_file, 'r') as f:
+        # skip the header
+        for _ in range(2):
+            f.readline()
+        target_line = f.readline()
+    stats = target_line.split(",")
+    points_number = int(stats[0].split("# Number of points:")[-1])
+
+    return points_number
+
+def get_colmap_registered_images_stat(images_txt_file:str)-> int:
+    with open(images_txt_file, 'r') as f:
+        # skip the header
+        for _ in range(3):
+            f.readline()
+        target_line = f.readline()
+        stats = target_line.split(",")
+        regestered_frames = int(stats[0].split("# Number of images:")[-1])
+        mean_obser_per_image = float(stats[1].split('mean observations per image:')[-1])
+
+        return regestered_frames, mean_obser_per_image
+
+
 def read_colmap_image_txt(images_txt_file:str)-> List:
     images_data = []
     with open(images_txt_file, 'r') as f:
@@ -273,6 +301,96 @@ def read_colmap_cameras_txt(camera_txt_file:str)->List:
                                                                      "p2": camera_data[p2_index].strip()}
     return cameras_data
 
+
+
+def run_colmap_model_analyzer(
+    sparse_model_path: str | Path,
+    colmap_exe: str = "colmap",
+) -> dict[str, Any]:
+    """
+    Run `colmap model_analyzer` and parse its output into a dictionary.
+
+    Args:
+        sparse_model_path:
+            Path to COLMAP sparse model directory, e.g. ".../sparse/0".
+        colmap_exe:
+            COLMAP executable name or full path.
+
+    Returns:
+        Dictionary containing parsed model statistics.
+    """
+    sparse_model_path = Path(sparse_model_path)
+
+    if not sparse_model_path.exists():
+        raise FileNotFoundError(f"Sparse model path does not exist: {sparse_model_path}")
+
+    cmd = [
+        colmap_exe,
+        "model_analyzer",
+        "--path",
+        str(sparse_model_path),
+    ]
+
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        check=False,
+    )
+
+    output = result.stdout
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"COLMAP model_analyzer failed with exit code {result.returncode}\n"
+            f"Command: {' '.join(cmd)}\n"
+            f"Output:\n{output}"
+        )
+
+    stats: dict[str, Any] = {}
+
+    patterns = {
+        "rigs": r"Rigs:\s+(\d+)",
+        "cameras": r"Cameras:\s+(\d+)",
+        "frames": r"Frames:\s+(\d+)",
+        "registered_frames": r"Registered frames:\s+(\d+)",
+        "images": r"Images:\s+(\d+)",
+        "registered_images": r"Registered images:\s+(\d+)",
+        "points3D": r"Points:\s+(\d+)",
+        "observations": r"Observations:\s+(\d+)",
+        "mean_track_length": r"Mean track length:\s+([0-9.eE+-]+)",
+        "mean_observations_per_image": r"Mean observations per image:\s+([0-9.eE+-]+)",
+        "mean_reprojection_error_px": r"Mean reprojection error:\s+([0-9.eE+-]+)px",
+    }
+
+    int_keys = {
+        "rigs",
+        "cameras",
+        "frames",
+        "registered_frames",
+        "images",
+        "registered_images",
+        "points3D",
+        "observations",
+    }
+
+    for key, pattern in patterns.items():
+        match = re.search(pattern, output)
+
+        if match is None:
+            stats[key] = None
+            continue
+
+        value = match.group(1)
+
+        if key in int_keys:
+            stats[key] = int(value)
+        else:
+            stats[key] = float(value)
+
+
+    return stats
 
 if __name__ == "__main__":
     pass

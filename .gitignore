@@ -5,7 +5,8 @@ __pycache__/
 
 # C extensions
 *.so
-
+notebooks/playground/*
+src/playground/*
 # Distribution / packaging
 .Python
 build/
