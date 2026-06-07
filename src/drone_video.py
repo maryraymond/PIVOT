@@ -152,7 +152,7 @@ def process_video_to_images(video_file, image_dir,
         # We read all the meta data to keep track of missing params but only write when needed
         if save_frame:
             if frame_name_fn is None:
-                file_name = "frame_{frame_index:06d}.JPG"
+                file_name = f"frame_{frame_index:06d}.JPG"
             else:
                 file_name = frame_name_fn(frame_index)
                 

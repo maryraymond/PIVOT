@@ -70,7 +70,7 @@ def ned_from_gps(lat_deg, lon_deg, alt_m, lat0_deg=0, lon0_deg=0, alt0_m=0.0, us
     if not use_absolute_altitude:
         # DJI "world" is NED: z is Down
         # RelativeAltitude is typically "Up from takeoff", so convert to Down:
-        z_down = -(alt_m - alt0_m)
+        z_down = -(alt_m)
     else: 
         # Abslout is from sea level and increases up where Ned z+ve is down so
         # we need to multiply by -ve
@@ -174,8 +174,8 @@ def read_images_data_from_folder(data_path:str, camera_id:int=1,
 
     for image in images:
         exif_data = read_metadata_exiftool(image)
-        lat, long, alt = get_gps_value(exif_data, absolute_altitude=use_absloute_altitude)
-        x, y, z = ned_from_gps(lat, long, alt, lat_0, long_0, alt_0, use_absolute_altitude=use_absloute_altitude)
+        lat, longitude, alt = get_gps_value(exif_data, absolute_altitude=use_absloute_altitude)
+        x, y, z = ned_from_gps(lat, longitude, alt, lat_0, long_0, alt_0, use_absolute_altitude=use_absloute_altitude)
 
         Rg2f, _ = get_gimbal_rotation(exif_data)
 

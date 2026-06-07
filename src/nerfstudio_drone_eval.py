@@ -13,6 +13,8 @@ from pytorch_msssim import SSIM
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.cameras import camera_utils
+from nerfstudio.models.splatfacto import SplatfactoModel
+from nerfstudio.data.datamanagers.full_images_datamanager import _undistort_image
 
 def get_data_transforms(transforms_file):
 
@@ -20,20 +22,28 @@ def get_data_transforms(transforms_file):
     with open(transforms_file, 'r') as f:
         transforms = json.load(f)
 
-        R[:3, :4] = np.array(transforms["transform"])
+        R[:3, :4] = np.array(transforms["transform"]).astype(np.float32)
         scale = float(transforms["scale"])
 
     return R, scale
 
 
 def calculate_eval_metrics(eval_data, model, model_dataparser_transforms, 
-                           ds_root, out_dir, compose_background=False):
+                           ds_root, out_dir, compose_background=False, scale_factor=1.0):
+    
     traj_metrics = {}
     ds_root = str(ds_root)
     R, scale = get_data_transforms(model_dataparser_transforms)
     psnr = PeakSignalNoiseRatio(data_range=1.0)
     ssim = SSIM(data_range=1.0, size_average=True, channel=3)
     lpips = LearnedPerceptualImagePatchSimilarity(normalize=True)
+
+    total_frame_number = 0
+    traj_metrics["avrg"] = {"ssim":0.0,
+                            "lpips":0.0,
+                            "psnr": 0.0,
+                            "fid": 0.0
+                            }
 
     for traj in eval_data.keys():
 
@@ -66,9 +76,8 @@ def calculate_eval_metrics(eval_data, model, model_dataparser_transforms,
             cv2.imwrite(f"{gt_dir}/{image_name}", gt_image)
 
             # now prepare the image for the metrics comparison
-            gt_image = cv2.cvtColor(gt_image, cv2.COLOR_BGR2RGB)/255
-            # gt_image = torch.tensor(gt_image, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0)
-            gt_image = torch.tensor(gt_image, dtype=torch.float32)
+            gt_image = cv2.cvtColor(gt_image, cv2.COLOR_BGR2RGB)
+            # gt_image = gt_image.astype(np.float32)/255
 
             # BUILD UP THE CAMERA AND THE POSES
             if "camera_model" not in frame:
@@ -79,11 +88,11 @@ def calculate_eval_metrics(eval_data, model, model_dataparser_transforms,
                 camera_type = CameraType.FISHEYE
             
 
-            c2w = torch.tensor(frame["transform_matrix"]).view(4, 4).numpy()
+            c2w = torch.tensor(frame["transform_matrix"]).view(4, 4).numpy().astype(np.float32)
             c2w = R @ c2w 
-            c2w *=  scale
+            c2w[:3, 3] *=  scale
             c2w = torch.tensor(c2w)
-            c2w = c2w[:3].unsqueeze(0).to(dtype=torch.float32)
+            c2w = c2w[:3].unsqueeze(0)
 
             fx=float(frame["fl_x"])
             fy=float(frame["fl_y"])
@@ -93,14 +102,27 @@ def calculate_eval_metrics(eval_data, model, model_dataparser_transforms,
             width=int(frame["w"])
 
             # read the distaortions
-            distort.append(camera_utils.get_distortion_params(
+            distort = camera_utils.get_distortion_params(
                             k1=float(frame["k1"]) if "k1" in frame else 0.0,
                             k2=float(frame["k2"]) if "k2" in frame else 0.0,
                             k3=float(frame["k3"]) if "k3" in frame else 0.0,
                             k4=float(frame["k4"]) if "k4" in frame else 0.0,
                             p1=float(frame["p1"]) if "p1" in frame else 0.0,
                             p2=float(frame["p2"]) if "p2" in frame else 0.0,
-                        ))
+                        )
+            
+            if scale_factor < 1.0:
+                gt_image = cv2.resize(gt_image, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_LINEAR)
+                # gt_image = cv2.resize(gt_image, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
+                fx *= scale_factor
+                fy *= scale_factor
+                cx *= scale_factor
+                cy *= scale_factor
+                height = gt_image.shape[0]
+                width = gt_image.shape[1]
+
+            # # convert the gt image to float
+            gt_image = gt_image.astype(np.float32)/255
             
             camera = Cameras(
                 fx=fx,
@@ -108,11 +130,30 @@ def calculate_eval_metrics(eval_data, model, model_dataparser_transforms,
                 cx=cx,
                 cy=cy,
                 distortion_params=distort,
-                height=height,
-                width=width,
-                camera_to_worlds=c2w[:, :3, :4],
+                height=torch.tensor(height, dtype=torch.int),
+                width=torch.tensor(width, dtype=torch.int),
+                camera_to_worlds=torch.tensor(c2w[:, :3, :4], dtype=torch.float32),
                 camera_type=camera_type,
             )
+
+            if isinstance(model, SplatfactoModel):
+                # we need to undistort the image
+                data = {}
+                K = camera.get_intrinsics_matrices().squeeze(0).numpy()
+                distortion_params = camera.distortion_params.squeeze(0).numpy()
+                K, gt_image, mask = _undistort_image(camera, distortion_params, data, gt_image, K)
+                # we create each camera sepreatly so idx  = 0
+                idx = 0
+                camera.fx[idx] = float(K[0, 0])
+                camera.fy[idx] = float(K[1, 1])
+                camera.cx[idx] = float(K[0, 2])
+                camera.cy[idx] = float(K[1, 2])
+                camera.width[idx] = gt_image.shape[1]
+                camera.height[idx] = gt_image.shape[0]
+
+
+            cv2.imwrite(f"{gt_dir}/{image_name}", cv2.cvtColor(gt_image.astype(np.float32), cv2.COLOR_RGB2BGR)*255)
+            gt_image = torch.tensor(gt_image, dtype=torch.float32)
 
             with torch.no_grad():
                 gen_image = model.get_outputs_for_camera(camera=camera)
@@ -120,6 +161,7 @@ def calculate_eval_metrics(eval_data, model, model_dataparser_transforms,
             if compose_background:
                 gt_image = model.composite_with_background(gt_image, gen_image["background"])
 
+            
             gt_image = gt_image.permute(2, 0, 1).unsqueeze(0)
 
 
@@ -137,37 +179,48 @@ def calculate_eval_metrics(eval_data, model, model_dataparser_transforms,
             traj_metrics[traj]["psnr"]  += psnr_val
 
 
+            traj_metrics["avrg"]["ssim"] += ssim_val
+            traj_metrics["avrg"]["lpips"] += lpips_val
+            traj_metrics["avrg"]["psnr"]  += psnr_val
+
+
             print(f"psnr = {psnr_val}, ssim = {ssim_val}, lpips = {lpips_val}")
         
         traj_metrics[traj]["ssim"] /= len(frames)
         traj_metrics[traj]["lpips"] /= len(frames)
         traj_metrics[traj]["psnr"]  /= len(frames)
 
+        total_frame_number += len(frames)
+    
+    traj_metrics["avrg"]["ssim"] /= total_frame_number
+    traj_metrics["avrg"]["lpips"] /= total_frame_number
+    traj_metrics["avrg"]["psnr"]  /= total_frame_number
+
     return traj_metrics
 
 
-def calculate_eval_metrics_avrg(traj_metrics):
+def calculate_eval_metrics_avrg(eval_data, traj_metrics):
     traj_metrics["avrg"] = {"ssim":0.0,
                             "lpips":0.0,
                             "psnr": 0.0,
                             "fid": 0.0
                             }
-    for traj in traj_metrics.keys():
+    for traj in eval_data.keys():
 
         traj_metrics["avrg"]["ssim"] += traj_metrics[traj]["ssim"]
         traj_metrics["avrg"]["lpips"] += traj_metrics[traj]["lpips"]
         traj_metrics["avrg"]["psnr"] += traj_metrics[traj]["psnr"]
         traj_metrics["avrg"]["fid"] += traj_metrics[traj]["fid"]
 
-    traj_metrics["avrg"]["ssim"] /= len(traj_metrics.keys())
-    traj_metrics["avrg"]["lpips"] /= len(traj_metrics.keys())
-    traj_metrics["avrg"]["psnr"] /= len(traj_metrics.keys())
-    traj_metrics["avrg"]["fid"] /= len(traj_metrics.keys())
+    traj_metrics["avrg"]["ssim"] /= len(eval_data.keys())
+    traj_metrics["avrg"]["lpips"] /= len(eval_data.keys())
+    traj_metrics["avrg"]["psnr"] /= len(eval_data.keys())
+    traj_metrics["avrg"]["fid"] /= len(eval_data.keys())
 
     return traj_metrics
 
 
-def calculate_drone_ds_metrcis(model_config_file, out_dir):    
+def calculate_drone_ds_metrcis(model_config_file, out_dir, eval_dataset=None):    
     out_eval_file = f"{out_dir}/results.json"
     model_dataparser_transforms = f"{model_config_file.parent}/dataparser_transforms.json"
     compose_background = False
@@ -177,8 +230,11 @@ def calculate_drone_ds_metrcis(model_config_file, out_dir):
                 eval_num_rays_per_chunk=None,
                 test_mode="inference",
             )
-            
-    ds_root = config.data
+    
+    if eval_dataset is not None:
+        ds_root = Path(eval_dataset)
+    else:
+        ds_root = config.data
     dataset_json = f"{ds_root}/transforms.json"
 
 
@@ -194,14 +250,15 @@ def calculate_drone_ds_metrcis(model_config_file, out_dir):
             eval_data.setdefault(traj, []).append(frame)
             
     model = pipeline.model
+    scale_factor = config.pipeline.datamanager.camera_res_scale_factor
 
     os.makedirs(out_dir, exist_ok=True)
 
 
     traj_metrics = calculate_eval_metrics(eval_data, model, model_dataparser_transforms, 
-                                          ds_root, out_dir, compose_background)
+                                          ds_root, out_dir, compose_background, scale_factor=scale_factor)
 
-    traj_metrics = calculate_eval_metrics_avrg(traj_metrics)
+    # traj_metrics = calculate_eval_metrics_avrg(eval_data, traj_metrics)
 
 
     with open (out_eval_file, 'w') as f:

@@ -40,7 +40,7 @@ def update_config_with_indices(scene_config, scene_tranjectories):
         train_ids, eval_ids = random_train_eval_ids(n_frames=scene_tranjectories[traj]["number_frames_in_traj"], 
                                                     train_percent=train_percenatge)
         train_config[traj]["indices"] = train_ids
-        if traj in eval_config.keys():
+        if eval_config is not None and traj in eval_config.keys():
             print(f"Setting the eval percentage for traj {traj} as {1-train_percenatge} %")
             eval_config[traj]["indices"] = eval_ids
 
