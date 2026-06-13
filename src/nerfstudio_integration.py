@@ -94,7 +94,7 @@ def process_split(scene_dir:str, dst_dir:str,
                             
             for i in traj_frame_range:
 
-                if i > traj_num_frames:
+                if i >= traj_num_frames:
                     print(f"Warning idex {i} is out of range for {tranjectory} skipping")
                     continue
                 

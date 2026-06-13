@@ -296,9 +296,17 @@ def read_colmap_cameras_txt(camera_txt_file:str)->List:
                                                                      "cy": camera_data[cy_index].strip(),
                                                                      "k1": camera_data[k1_index].strip(),
                                                                      "k2": camera_data[k2_index].strip(),
-                                                                     "k3": 0,
-                                                                     "p1": camera_data[p1_index].strip(),
-                                                                     "p2": camera_data[p2_index].strip()}
+                                                                     "k3": 0
+                                                                     }
+                if cameras_data[camera_data[camera_id_index].strip()]["camera_type"] == "OPENCV":
+                    cameras_data[camera_data[camera_id_index].strip()]["p1"] = camera_data[p1_index].strip()
+                    cameras_data[camera_data[camera_id_index].strip()]["p2"] = camera_data[p2_index].strip()
+                elif cameras_data[camera_data[camera_id_index].strip()]["camera_type"] == "OPENCV_FISHEYE":
+                    cameras_data[camera_data[camera_id_index].strip()]["k3"] = camera_data[p1_index].strip()
+                    cameras_data[camera_data[camera_id_index].strip()]["k4"] = camera_data[p2_index].strip()
+                else:
+                    raise ValueError(f"Unsupported camera type {cameras_data[camera_data[camera_id_index].strip()]['camera_type']}")
+
     return cameras_data
 
 

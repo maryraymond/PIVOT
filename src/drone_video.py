@@ -143,8 +143,8 @@ def process_video_to_images(video_file, image_dir,
                 distance = get_distance_between_camera_centers(prev_saved_frame_metadata, frame_metadata)
                 yaw_diff, pitch_diff, roll_diff = get_euler_diff_between_cameras(prev_saved_frame_metadata, frame_metadata)
 
-                if distance >= min_camera_distanct_m or yaw_diff >= min_camera_rot_deg or \
-                   pitch_diff >= min_camera_rot_deg or roll_diff >= min_camera_rot_deg:
+                if distance >= min_camera_distanct_m or abs(yaw_diff) >= min_camera_rot_deg or \
+                   pitch_diff >= min_camera_rot_deg or abs(roll_diff) >= min_camera_rot_deg:
                     save_frame = True
                     if debug_prints:
                         print(f"Saving frame with camera dist={distance}, yaw_diff={yaw_diff}, roll_diff={roll_diff}, pitch_diff={pitch_diff}")
