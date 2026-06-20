@@ -1,6 +1,8 @@
 # temproary
 cp /code/nerfstudio/scripts/eval.py  /home/user/nerfstudio/nerfstudio/scripts/eval.py
 cp /code/nerfstudio/scripts/nerfstudio_drone_eval.py  /home/user/nerfstudio/nerfstudio/scripts/nerfstudio_drone_eval.py
+cp /code/nerfstudio/data/dataparsers/nerfstudio_dataparser.py  /home/user/nerfstudio/nerfstudio/data/dataparsers/nerfstudio_dataparser.py
+cp /code/nerfstudio/cameras/cameras.py  /home/user/nerfstudio/nerfstudio/cameras/cameras.py
 
 ## input for the script
 # ROOT_DIR="/workspace/datasets/"
@@ -22,50 +24,23 @@ python /code/scripts/exp/nerfstudio_integration.py \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --scene-config '{
     "train": {
+
       "orbit_inward_low": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": true,
         "fill_missing_poses_with_non_optimized": false,
         "percentage": 0.9
       },
       "orbit_inward_mid": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": true,
         "fill_missing_poses_with_non_optimized": false,
         "percentage": 0.9
       },
       "orbit_inward_high": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": true,
-        "fill_missing_poses_with_non_optimized": false,
-        "percentage": 0.9
-      },
-      "traversal_forward_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": true,
-        "fill_missing_poses_with_non_optimized": false,
-        "percentage": 0.9
-      },
-      "traversal_backward_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": true,
-        "fill_missing_poses_with_non_optimized": false,
-        "percentage": 0.9
-      },
-      "traversal_left_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": true,
-        "fill_missing_poses_with_non_optimized": false,
-        "percentage": 0.9
-      },
-       "traversal_right_low": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": true,
         "fill_missing_poses_with_non_optimized": false,
@@ -74,43 +49,19 @@ python /code/scripts/exp/nerfstudio_integration.py \
     },
     "eval": {
       "orbit_inward_low": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": true,
         "fill_missing_poses_with_non_optimized": false
       },
       "orbit_inward_mid": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": true,
         "fill_missing_poses_with_non_optimized": false
       },
       "orbit_inward_high": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": true,
-        "fill_missing_poses_with_non_optimized": false
-      },
-      "traversal_forward_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": true,
-        "fill_missing_poses_with_non_optimized": false
-      },
-      "traversal_backward_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": true,
-        "fill_missing_poses_with_non_optimized": false
-      },
-      "traversal_left_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": true,
-        "fill_missing_poses_with_non_optimized": false
-      },
-       "traversal_right_low": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": true,
         "fill_missing_poses_with_non_optimized": false
@@ -120,8 +71,8 @@ python /code/scripts/exp/nerfstudio_integration.py \
 
 echo splatfacto 
 ns-train splatfacto --output-dir /workspace/outputs --experiment-name ${EXP_FOLDER} --save-only-latest-checkpoint True \
---vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.random-scale 2 --pipeline.model.camera-optimizer.mode SO3xR3 \
---timestamp ${TIME_STAMP} --max-num-iterations ${NUM_ITERATIONS} --viewer.quit-on-train-completion True \
+--vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.random-scale 10 --pipeline.model.camera-optimizer.mode off \
+--timestamp ${TIME_STAMP} --max-num-iterations ${NUM_ITERATIONS} --viewer.quit-on-train-completion True --pipeline.datamanager.camera-res-scale-factor 0.5 \
 nerfstudio-data --eval-mode filename 
 
 ns-eval --load-config /workspace/outputs/${EXP_FOLDER}/splatfacto/${TIME_STAMP}/config.yml \
@@ -135,8 +86,8 @@ ns-eval --load-config /workspace/outputs/${EXP_FOLDER}/splatfacto/${TIME_STAMP}/
 
 echo nerfacto 
 ns-train nerfacto --output-dir /workspace/outputs --experiment-name ${EXP_FOLDER} --save-only-latest-checkpoint True \
---vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.camera-optimizer.mode SO3xR3 \
---timestamp ${TIME_STAMP} --max-num-iterations ${NUM_ITERATIONS} --viewer.quit-on-train-completion True \
+--vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.camera-optimizer.mode off \
+--timestamp ${TIME_STAMP} --max-num-iterations ${NUM_ITERATIONS} --viewer.quit-on-train-completion True  --pipeline.datamanager.camera-res-scale-factor 0.5 \
 nerfstudio-data --eval-mode filename 
 
 ns-eval --load-config /workspace/outputs/${EXP_FOLDER}/nerfacto/${TIME_STAMP}/config.yml \
@@ -160,49 +111,21 @@ python /code/scripts/exp/nerfstudio_integration.py \
   --scene-config '{
     "train": {
       "orbit_inward_low": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": false,
         "fill_missing_poses_with_non_optimized": false,
         "percentage": 0.9
       },
       "orbit_inward_mid": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": false,
         "fill_missing_poses_with_non_optimized": false,
         "percentage": 0.9
       },
       "orbit_inward_high": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": false,
-        "fill_missing_poses_with_non_optimized": false,
-        "percentage": 0.9
-      },
-      "traversal_forward_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": false,
-        "fill_missing_poses_with_non_optimized": false,
-        "percentage": 0.9
-      },
-      "traversal_backward_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": false,
-        "fill_missing_poses_with_non_optimized": false,
-        "percentage": 0.9
-      },
-      "traversal_left_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": false,
-        "fill_missing_poses_with_non_optimized": false,
-        "percentage": 0.9
-      },
-       "traversal_right_low": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": false,
         "fill_missing_poses_with_non_optimized": false,
@@ -211,43 +134,19 @@ python /code/scripts/exp/nerfstudio_integration.py \
     },
     "eval": {
       "orbit_inward_low": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": false,
         "fill_missing_poses_with_non_optimized": false
       },
       "orbit_inward_mid": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": false,
         "fill_missing_poses_with_non_optimized": false
       },
       "orbit_inward_high": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": false,
-        "fill_missing_poses_with_non_optimized": false
-      },
-      "traversal_forward_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": false,
-        "fill_missing_poses_with_non_optimized": false
-      },
-      "traversal_backward_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": false,
-        "fill_missing_poses_with_non_optimized": false
-      },
-      "traversal_left_low": {
-        "c2w_rot_optimized": ture,
-        "c2w_trans_optimized": true,
-        "camera_intrinsics_optimized": false,
-        "fill_missing_poses_with_non_optimized": false
-      },
-       "traversal_right_low": {
-        "c2w_rot_optimized": ture,
+        "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": false,
         "fill_missing_poses_with_non_optimized": false
@@ -257,8 +156,8 @@ python /code/scripts/exp/nerfstudio_integration.py \
 
 echo splatfacto 
 ns-train splatfacto --output-dir /workspace/outputs --experiment-name ${EXP_FOLDER} --save-only-latest-checkpoint True \
---vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.random-scale 2 --pipeline.model.camera-optimizer.mode SO3xR3 \
---timestamp ${TIME_STAMP} --max-num-iterations ${NUM_ITERATIONS} --viewer.quit-on-train-completion True \
+--vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.random-scale 10 --pipeline.model.camera-optimizer.mode off \
+--timestamp ${TIME_STAMP} --max-num-iterations ${NUM_ITERATIONS} --viewer.quit-on-train-completion True --pipeline.datamanager.camera-res-scale-factor 0.5 \
 nerfstudio-data --eval-mode filename 
 
 ns-eval --load-config /workspace/outputs/${EXP_FOLDER}/splatfacto/${TIME_STAMP}/config.yml \
@@ -272,8 +171,8 @@ ns-eval --load-config /workspace/outputs/${EXP_FOLDER}/splatfacto/${TIME_STAMP}/
 
 echo nerfacto 
 ns-train nerfacto --output-dir /workspace/outputs --experiment-name ${EXP_FOLDER} --save-only-latest-checkpoint True \
---vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.camera-optimizer.mode SO3xR3 \
---timestamp ${TIME_STAMP} --max-num-iterations ${NUM_ITERATIONS} --viewer.quit-on-train-completion True \
+--vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.camera-optimizer.mode off \
+--timestamp ${TIME_STAMP} --max-num-iterations ${NUM_ITERATIONS} --viewer.quit-on-train-completion True --pipeline.datamanager.camera-res-scale-factor 0.5 \
 nerfstudio-data --eval-mode filename 
 
 ns-eval --load-config /workspace/outputs/${EXP_FOLDER}/nerfacto/${TIME_STAMP}/config.yml \
