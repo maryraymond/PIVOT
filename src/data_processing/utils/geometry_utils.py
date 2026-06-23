@@ -29,12 +29,10 @@ def get_ned_rotation_from_yaw_pitch_roll(yaw_degree:float, pitch_degree:float, r
 
     return R
 
-
 def R_to_quat(R: np.ndarray):
     r = Rot.from_matrix(R)
     qx, qy, qz, qw = r.as_quat()  # SciPy returns (x, y, z, w)
     return (float(qx), float(qy), float(qz), float(qw))
-
 
 def quat_to_R(quat:Tuple[float])->NDArray:
     quat = list(quat)
@@ -52,7 +50,6 @@ def homo_pose_to_quat(pose_c2w: NDArray)-> Tuple[Tuple, Tuple]:
     quat = R_to_quat(R)
     
     return(quat, T.tolist())
-
 
 def quat_to_homo_pose(quat:Tuple[float], T:Tuple[float]):
     R = quat_to_R(quat)
@@ -101,11 +98,16 @@ def get_3d_point_distance(p1, p2):
 
     return d
 
+def get_homogenous_matrix(R: NDArray, x: float, y: float, z: float) -> NDArray:
+    pose = np.eye(4)
+    pose[:3, :3] = R
+    pose[0, 3] = x
+    pose[1, 3] = y
+    pose[2, 3] = z
+    return pose
+
 def get_3d_point_xyz_diff(p1, p2):
     X1, Y1, Z1 = p1
     X2, Y2, Z2 = p2
 
     return np.abs(X2 - X1), np.abs(Y2 - Y1), np.abs(Z2 - Z1)
-
-if __name__ == "__main__":
-    pass

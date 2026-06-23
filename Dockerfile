@@ -26,6 +26,9 @@ ENV TZ=Europe/Berlin
 ## CUDA Home, required to find CUDA in some packages.
 ENV CUDA_HOME="/usr/local/cuda"
 
+ENV PYTHONPATH=/workspace/src
+ENV PYTHONPATH=/workspace/sripts
+
 # Install required apt packages and clear cache afterwards.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -113,7 +116,8 @@ RUN python3.10 -m  pip install --no-cache-dir \
     viser==1.0.27 \
     plyfile \
     plotly \
-    openpyxl
+    openpyxl \
+    matplotlib
 
 # Install ExifTool
 WORKDIR /tmp

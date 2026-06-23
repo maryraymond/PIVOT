@@ -1,15 +1,17 @@
 
 import pycolmap
 import numpy as np
-from typing import List
+from typing import List, Callable
 import subprocess
 import os
 from pathlib import Path
 from enum import Enum
 
+from data_processing.core.camera_metadata_abc import CameraImageMetaData
+from data_processing.core.image_processing import read_images_data_from_folder
+from data_processing.utils.processing_utils import get_cameras_data
 
-from drone_core import read_images_data_from_folder, get_cameras_data
-from colmap_conversion import write_colmap_cameras_txt, write_colmap_images_txt, convert_data_to_colmap
+from colmap_utils.colmap_conversion import write_colmap_cameras_txt, write_colmap_images_txt, convert_data_to_colmap
 
 class CameraMode(Enum):
     SINGLE=pycolmap.CameraMode.SINGLE
@@ -38,10 +40,8 @@ def update_db_pose_prior(colmap_data_base:str, images_data:List, pose_covar:List
         db.update_pose_prior(image_to_id[image_data["file_name"]], pose_prior)
     db.close()
 
-
 def get_traj_name(image_name):
     return image_name.split("/")[0]
-
 
 def get_camera_to_traj_map(db_images):
     cam_id_map = {}
@@ -65,7 +65,6 @@ def update_cameras_type(colmap_db, folder_to_cam):
     for camera in db_cameras:
         camera.model = folder_to_cam[cam_id_map[camera.camera_id]]
         db.update_camera(camera)
-
 
 def convert_model_txt(input_path, output_path=None):
     if output_path is None:
@@ -126,10 +125,14 @@ def run_colmap(dataset_images_dir, colmap_dir,
         convert_model_txt(str(sparse_model))
         convert_model_ply(str(sparse_model))
 
-
-def run_colmap_with_initialization(dataset_images_dir, camera_calibration_file,
-                                   colmap_dir, camera_mode:CameraMode=CameraMode.SINGLE,
+def run_colmap_with_initialization(dataset_images_dir, 
+                                   create_image_metadata:Callable[[str, bool], CameraImageMetaData],
+                                   camera_calibration_file,
+                                   colmap_dir,
+                                   use_absloute_altitude=True,
+                                   camera_mode:CameraMode=CameraMode.SINGLE,
                                    camera_model="OPENCV", camera_model_map=None):
+    
     colmap_db = colmap_dir / "database.db"
     colmap_out_dir = colmap_dir / "sparse"
     colmap_init_dir = colmap_dir / "sparse_init"
@@ -138,7 +141,9 @@ def run_colmap_with_initialization(dataset_images_dir, camera_calibration_file,
     colmap_init_points = colmap_init_dir / "points3D.txt"
 
     cameras_data = get_cameras_data(cal_file=camera_calibration_file)
-    images_data = read_images_data_from_folder(dataset_images_dir)
+    images_data = read_images_data_from_folder(dataset_images_dir, 
+                                               create_image_metadata=create_image_metadata, 
+                                               use_absloute_altitude=use_absloute_altitude)
 
     os.makedirs(colmap_dir, exist_ok=True)
 
@@ -192,7 +197,6 @@ def run_colmap_with_initialization(dataset_images_dir, camera_calibration_file,
         convert_model_txt(str(sparse_model))
         convert_model_ply(str(sparse_model))
 
-
 def pose_prior_mapping(database_path, image_path, 
                        output_path, max_num_models=3,
                        input_path=''):
@@ -211,11 +215,20 @@ def pose_prior_mapping(database_path, image_path,
 
     return result
 
-
-def run_colmap_with_soft_priors(dataset_images_dir, colmap_dir, max_num_models=3,
-                                camera_mode:CameraMode=CameraMode.SINGLE, pos_var = None,
-                                update_positions=True, cartesian_system=True, camera_model="OPENCV",
-                                input_path='', sparse_dir_name="sparse", camera_model_map=None):
+def run_colmap_with_soft_priors(dataset_images_dir,
+                                create_image_metadata:Callable[[str, bool], CameraImageMetaData], 
+                                colmap_dir, 
+                                use_absloute_altitude=True,
+                                max_num_models=3,
+                                camera_mode:CameraMode=CameraMode.SINGLE, 
+                                pos_var = None,
+                                update_positions=True, 
+                                cartesian_system=True, 
+                                camera_model="OPENCV",
+                                input_path='', 
+                                sparse_dir_name="sparse", 
+                                camera_model_map=None):
+    
     colmap_db = colmap_dir / "database.db"
     colmap_out_dir = colmap_dir / sparse_dir_name
     os.makedirs(colmap_dir, exist_ok=True)
@@ -239,7 +252,9 @@ def run_colmap_with_soft_priors(dataset_images_dir, colmap_dir, max_num_models=3
     pycolmap.match_exhaustive(database_path=colmap_db)
 
     #Read the Images data to load the positions in NED coordinate system
-    images_data = read_images_data_from_folder(dataset_images_dir)
+    images_data = read_images_data_from_folder(dataset_images_dir, 
+                                               create_image_metadata=create_image_metadata, 
+                                               use_absloute_altitude=use_absloute_altitude)
 
     if pos_var is None:
         pos_var = [4, 4, 4]
@@ -260,5 +275,3 @@ def run_colmap_with_soft_priors(dataset_images_dir, colmap_dir, max_num_models=3
         convert_model_txt(str(sparse_model))
         convert_model_ply(str(sparse_model))
     
-if __name__ == "__main__":
-    pass

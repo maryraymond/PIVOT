@@ -11,9 +11,10 @@ import math
 from viser.theme import TitlebarButton, TitlebarConfig, TitlebarImage
 import numpy as np
 import plotly.graph_objects as go
-from drone_core import get_poses_from_data
-from geometry import R_to_quat, homo_pose_to_quat
-from camera_utils import get_diag_fov_fe, get_vertical_fov_fe, get_horizontal_fov_fe, get_diag_fov, get_horizontal_fov, get_vertical_fov
+
+from data_processing.utils.processing_utils import get_poses_from_data, get_traj_frames_data
+from data_processing.utils.geometry_utils import R_to_quat, homo_pose_to_quat
+from data_processing.utils.camera_utils import get_diag_fov_fe, get_vertical_fov_fe, get_horizontal_fov_fe, get_diag_fov, get_horizontal_fov, get_vertical_fov
 
 def get_traj_camera_centers_pairs(scene_traj_data, traj_name, step=5):
     frames = scene_traj_data[traj_name]["frames"]
@@ -30,29 +31,6 @@ def get_traj_camera_centers_pairs(scene_traj_data, traj_name, step=5):
     
     return camera_centers_measured, camera_centers_colmap
 
-
-def get_traj_frames_data(scene_traj_data:List, trajectory_name:str, 
-                         cam_intrinsics_type:str="camera_intrinsic_colmap", 
-                         c2w_pose_type:str="colmap_pose_c2w"):
-    traj_data = scene_traj_data[trajectory_name]
-    cam_intrinsics = traj_data[cam_intrinsics_type]
-
-    frames = traj_data["frames"]
-
-    loaded_frames = []
-
-    for frame in frames:
-        if c2w_pose_type not in frame:
-            continue
-
-        loaded_frame = {"file_name":frame["file_name"],
-                        "pose_c2w":frame[c2w_pose_type],
-                        "intrinsics":cam_intrinsics}
-        loaded_frames.append(loaded_frame)
-
-    return loaded_frames
-
-
 def drone_DS_2_viser_pose(c2w):
     openGL_2_openCV_T = np.array([[1, 0, 0, 0],
                                   [0, -1, 0, 0],
@@ -65,7 +43,6 @@ def drone_DS_2_viser_pose(c2w):
     position = np.array(position)
 
     return wxyz, position
-
 
 def make_trajectory_error_bubble_plot(traj_stats: dict):
     """
@@ -140,8 +117,6 @@ def make_trajectory_error_bubble_plot(traj_stats: dict):
     )
 
     return fig
-
-
 
 def make_trajectory_error_bar_plot(traj_stats: dict):
     """
@@ -260,6 +235,89 @@ def make_trajectory_error_bar_plot(traj_stats: dict):
 
     return fig
 
+def make_trajectory_distance_heatmap(
+    traj_matrix: dict,
+    title: str = "Trajectory Distance Matrix",
+    colorscale: str = "Blues",
+    show_xy_lables = False
+):
+    """
+    Plot a trajectory-vs-trajectory heatmap.
+
+    Parameters
+    ----------
+    traj_matrix : dict
+        Nested dictionary:
+        {
+            traj_a: {
+                traj_b: distance,
+                ...
+            },
+            ...
+        }
+
+    title : str
+        Plot title.
+
+    colorscale : str
+        Any Plotly colorscale
+        e.g. Blues, Viridis, Plasma, Reds.
+    """
+
+    traj_names = list(traj_matrix.keys())
+
+    z = np.array([
+        [traj_matrix[row][col] for col in traj_names]
+        for row in traj_names
+    ])
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=z,
+            x=traj_names,
+            y=traj_names,
+            colorscale=colorscale,
+            # colorbar_title="Distance",
+            colorbar=dict(
+                title="",
+                thickness=8,
+                len=0.7,
+            ),
+            text=np.round(z, 3),
+            texttemplate="%{text}",
+            hovertemplate=(
+                "<b>%{y}</b> → <b>%{x}</b><br>"
+                "Distance: %{z:.2f}"
+                "<extra></extra>"
+            ),
+        )
+    )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Reference Trajectory",
+        yaxis_title="Query Trajectory",
+        margin=dict(l=1, r=10, t=20, b=1),
+        showlegend=False,
+        width=max(800, len(traj_names) * 60),
+        height=max(800, len(traj_names) * 60),
+    )
+    
+
+    if not show_xy_lables:
+        fig.update_xaxes(
+        showticklabels=False,
+        title=""
+        )
+
+        fig.update_yaxes(
+            showticklabels=False,
+            title=""
+        )
+
+    
+
+    return fig
 
 class ViserVisualization():
     def __init__(self, port):
@@ -493,6 +551,31 @@ class SceneVisualization():
             )
 
         self.scene_vis_dict["scene_summary_bubble_plot"] = bubble_plot
+
+    def add_scene_heatmap_plot(self):
+
+        traj_matrix = {}
+        for traj in self.scene_data["trajectories"].keys():
+            traj_matrix[traj] = self.scene_data["trajectories"][traj]["pose_chamfer_distance_directed_colmap"]
+
+        fig = make_trajectory_distance_heatmap(
+            traj_matrix,
+            title="",
+            colorscale="Viridis"
+        )
+
+        server = self.viser_visualization.get_server()
+
+        with server.gui.add_folder("Scene trajectories Chamfer Distance heatmap", expand_by_default=False):
+            heatmap_plot = server.gui.add_plotly(
+                fig,
+                aspect=1,
+                config={"displayModeBar": True,
+                        "scrollZoom": True,},
+                
+            )
+
+        self.scene_vis_dict["scene_heatmap_plot"] = heatmap_plot
     
 
     def add_scene_summary_double_bar_plot(self):
@@ -908,6 +991,7 @@ class SceneVisualization():
 
         self.apply_theme()
         self.add_scene_summary_bubble_plot()
+        self.add_scene_heatmap_plot()
         # scene_vis.add_scene_summary_double_bar_plot()
         self.visualize_world_coordinate()
         self.add_world_coordinate_gui()
@@ -937,58 +1021,3 @@ class SceneVisualization():
             self.create_traj_click_callbacks(traj)
             self.create_traj_click_callbacks(traj, pose_type="measured_pose_c2w")
 
-    
-# def visualize_scene(dataset_root, scene_name, trajectories=None, port=8080):
-#     scene_vis = SceneVisualization(dataset_root=dataset_root, 
-#                                    scene_name=scene_name, 
-#                                    port=port, 
-#                                    trajectories=trajectories)
-#     scene_vis.apply_theme()
-#     scene_vis.add_scene_summary_bubble_plot()
-#     # scene_vis.add_scene_summary_double_bar_plot()
-#     scene_vis.visualize_world_coordinate()
-#     scene_vis.add_world_coordinate_gui()
-#     scene_vis.visualize_point_cloud()
-#     scene_vis.add_point_cloud_gui()
-#     divider = scene_vis.viser_visualization.get_server().gui.add_divider()
-#     scene_vis.add_camera_info_markdown()
-#     scene_vis.add_scene_clear_click_callback()
-#     divider = scene_vis.viser_visualization.get_server().gui.add_divider()
-#     scene_vis.add_trajs_folder()
-#     scene_vis.add_trajs_gui(visible=False)
-#     trajectories = sorted(scene_vis.scene_data["trajectories"].keys())
-#     for traj in trajectories:
-#         scene_vis.visualize_traj_camera_frustums(traj_name=traj, visible=False, image_downsample=15)
-#         scene_vis.visualize_traj_camera_frustums(traj_name=traj,pose_type="measured_pose_c2w", 
-#                                                 variant='wireframe', visible=False, image_downsample=15, line_width=1)
-#         scene_vis.visualize_traj_camera_centers(traj_name=traj, line_width=0.5, visible=False)
-        
-#         scene_vis.add_frustums_gui(traj, visible=False)
-#         scene_vis.add_traj_details(traj)
-#         scene_vis.create_traj_click_callbacks(traj)
-#         scene_vis.create_traj_click_callbacks(traj, pose_type="measured_pose_c2w")
-
-def main():
-    src_dir = "/workspace/"
-    dataset_root = f"{src_dir}/datasets/processed"
-    scene_name = "backyard_sunny"
-    trajectories = ['traversal_forward_low',
-                    'traversal_left_low',
-                    'traversal_right_low',
-                    'traverse_loop_low']
-    port = 8080
-
-    print(f"Will run the viewer for {scene_name}")
-    scene_vis = SceneVisualization(dataset_root=dataset_root, 
-                                    scene_name=scene_name, 
-                                    port=port, 
-                                    trajectories=trajectories)
-    scene_vis.visualize_scene()
-    
-    print("Press ctrl+c to stop the viewer")
-    while(True):
-        time.sleep(10)
-
-if __name__ == "__main__":
-    main()
-    

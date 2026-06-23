@@ -6,11 +6,14 @@
         "path_closed": true,
         "camera_direction": "scene_inward",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "orbit_inward_mid": {
         "mandatory_level": "core",
         "motion_type": "orbit",
@@ -18,11 +21,14 @@
         "path_closed": true,
         "camera_direction": "scene_inward",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "orbit_inward_high": {
         "mandatory_level": "core",
         "motion_type": "orbit",
@@ -30,11 +36,14 @@
         "path_closed": true,
         "camera_direction": "scene_inward",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "traversal_forward_low": {
         "mandatory_level": "core",
         "motion_type": "traversal",
@@ -42,11 +51,14 @@
         "path_closed": false,
         "camera_direction": "along_track",
         "lens_type": "wide_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "traversal_backward_low": {
         "mandatory_level": "core",
         "motion_type": "traversal",
@@ -54,11 +66,14 @@
         "path_closed": false,
         "camera_direction": "along_track",
         "lens_type": "wide_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "traversal_left_low": {
         "mandatory_level": "core",
         "motion_type": "traversal",
@@ -66,11 +81,14 @@
         "path_closed": false,
         "camera_direction": "along_track",
         "lens_type": "wide_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "traversal_right_low": {
         "mandatory_level": "core",
         "motion_type": "traversal",
@@ -78,11 +96,14 @@
         "path_closed": false,
         "camera_direction": "along_track",
         "lens_type": "wide_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "traverse_loop_low": {
         "mandatory_level": "core",
         "motion_type": "traverse_loop",
@@ -90,11 +111,14 @@
         "path_closed": true,
         "camera_direction": "along_track",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "bev_orbit_area": {
         "mandatory_level": "core",
         "motion_type": "bev_orbit",
@@ -102,11 +126,14 @@
         "path_closed": true,
         "camera_direction": "nadir",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "rocket_upward": {
         "mandatory_level": "core",
         "motion_type": "vertical_ascent",
@@ -114,11 +141,14 @@
         "path_closed": false,
         "camera_direction": "scene_inward",
         "lens_type": "wide_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "scattered_low": {
         "mandatory_level": "core",
         "motion_type": "scattered",
@@ -126,11 +156,14 @@
         "path_closed": false,
         "camera_direction": "multi_angle",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "photos"
+        "capture_mode": "photos",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "panorama_360_station_a": {
         "mandatory_level": "core",
         "motion_type": "panorama_360",
@@ -138,11 +171,14 @@
         "path_closed": true,
         "camera_direction": "sweep_360",
         "lens_type": "standard_fov",
-        "res": [4032, 3024],
+        "res": [
+            4032,
+            3024
+        ],
         "aspect_ratio": "4:3",
-        "capture_mode": "photos"
+        "capture_mode": "photos",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "panorama_360_station_b": {
         "mandatory_level": "core",
         "motion_type": "panorama_360",
@@ -150,11 +186,14 @@
         "path_closed": true,
         "camera_direction": "sweep_360",
         "lens_type": "standard_fov",
-        "res": [4032, 3024],
+        "res": [
+            4032,
+            3024
+        ],
         "aspect_ratio": "4:3",
-        "capture_mode": "photos"
+        "capture_mode": "photos",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "panorama_360_station_c": {
         "mandatory_level": "core",
         "motion_type": "panorama_360",
@@ -162,11 +201,14 @@
         "path_closed": true,
         "camera_direction": "sweep_360",
         "lens_type": "standard_fov",
-        "res": [4032, 3024],
+        "res": [
+            4032,
+            3024
+        ],
         "aspect_ratio": "4:3",
-        "capture_mode": "photos"
+        "capture_mode": "photos",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "orbit_outward_low": {
         "mandatory_level": "optional",
         "motion_type": "orbit",
@@ -174,11 +216,14 @@
         "path_closed": true,
         "camera_direction": "scene_outward",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "orbit_outward_mid": {
         "mandatory_level": "optional",
         "motion_type": "orbit",
@@ -186,11 +231,14 @@
         "path_closed": true,
         "camera_direction": "scene_outward",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "orbit_outward_high": {
         "mandatory_level": "optional",
         "motion_type": "orbit",
@@ -198,11 +246,14 @@
         "path_closed": true,
         "camera_direction": "scene_outward",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "traversal_forward_mid": {
         "mandatory_level": "optional",
         "motion_type": "traversal",
@@ -210,11 +261,14 @@
         "path_closed": false,
         "camera_direction": "along_track",
         "lens_type": "wide_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "traversal_backward_mid": {
         "mandatory_level": "optional",
         "motion_type": "traversal",
@@ -222,11 +276,14 @@
         "path_closed": false,
         "camera_direction": "along_track",
         "lens_type": "wide_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "traversal_forward_high": {
         "mandatory_level": "optional",
         "motion_type": "traversal",
@@ -234,11 +291,14 @@
         "path_closed": false,
         "camera_direction": "along_track",
         "lens_type": "wide_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "traversal_backward_high": {
         "mandatory_level": "optional",
         "motion_type": "traversal",
@@ -246,11 +306,14 @@
         "path_closed": false,
         "camera_direction": "along_track",
         "lens_type": "wide_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "bev_traverse_area": {
         "mandatory_level": "optional",
         "motion_type": "bev_traverse",
@@ -258,11 +321,14 @@
         "path_closed": false,
         "camera_direction": "nadir",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "rocket_downward": {
         "mandatory_level": "optional",
         "motion_type": "vertical_descent",
@@ -270,11 +336,14 @@
         "path_closed": false,
         "camera_direction": "scene_inward",
         "lens_type": "wide_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "video_frames"
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "scattered_mid": {
         "mandatory_level": "optional",
         "motion_type": "scattered",
@@ -282,11 +351,14 @@
         "path_closed": false,
         "camera_direction": "multi_angle",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "photos"
+        "capture_mode": "photos",
+        "capture_device": "dji_drone_mini_4_pro"
     },
-
     "scattered_high": {
         "mandatory_level": "optional",
         "motion_type": "scattered",
@@ -294,8 +366,12 @@
         "path_closed": false,
         "camera_direction": "multi_angle",
         "lens_type": "standard_fov",
-        "res": [3840, 2160],
+        "res": [
+            3840,
+            2160
+        ],
         "aspect_ratio": "16:9",
-        "capture_mode": "photos"
+        "capture_mode": "photos",
+        "capture_device": "dji_drone_mini_4_pro"
     }
 }

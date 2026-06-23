@@ -4,73 +4,89 @@ import shutil
 import os
 from scipy.spatial.transform import Rotation as R
 import numpy as np
+import argparse
+from typing import Dict, Callable
+
+from data_processing.core.video_processing import process_video_to_images
+
+from data_processing.core.image_processing import read_images_data_from_sub_folders, frame_num
+
+from data_processing.utils.processing_utils import get_cameras_data, get_trajectories_diff
+
+from data_processing.core.camera_metadata_abc import GpsTagsMap
+
+from data_processing.utils.geometry_utils import (get_rotation_euler_diff,
+                                                  get_rotation_diff,
+                                                  get_3d_point_distance,
+                                                  get_3d_point_xyz_diff)
+
+from data_processing.utils.camera_utils import (get_diag_fov_fe,
+                                  get_vertical_fov_fe,
+                                  get_horizontal_fov_fe,
+                                  get_diag_fov,
+                                  get_horizontal_fov,
+                                  get_vertical_fov)
 
 
-from drone_video import process_video_to_images
-from drone_core import (get_cameras_data,
-                        read_images_data_from_sub_folders, 
-                        frame_num)
+from colmap_utils.colmap_conversion import (read_colmap_cameras_txt,
+                                            read_colmap_image_txt,
+                                            convert_data_from_colmap,
+                                            get_colmap_registered_images_stat,
+                                            get_colmap_number_points,
+                                            run_colmap_model_analyzer)
 
-from colmap_conversion import (read_colmap_cameras_txt, 
-                               read_colmap_image_txt, 
-                               convert_data_from_colmap,
-                               get_colmap_registered_images_stat,
-                               get_colmap_number_points)
-
-from colmap_processing import run_colmap_with_soft_priors, CameraMode
-from geometry import (get_rotation_euler_diff,
-                      get_rotation_diff,
-                      get_3d_point_distance,
-                      get_3d_point_xyz_diff)
-
-from camera_utils import (get_diag_fov_fe, 
-                          get_vertical_fov_fe, 
-                          get_horizontal_fov_fe, 
-                          get_diag_fov, 
-                          get_horizontal_fov, 
-                          get_vertical_fov)
-
+from colmap_utils.colmap_processing import run_colmap_with_soft_priors, CameraMode
 
 
 class RawDataProcessingPipeline():
     
-    def __init__(self):
-        self.COLORS = {
-                    # red is reserved for error visualisation
-                    # base: Tableau-20 minus red pair
-                    "blue":         ( 31, 119, 180),
-                    "light_blue":   (174, 199, 232),
-                    "orange":       (255, 127,  14),
-                    "light_orange": (255, 187, 120),
-                    "green":        ( 44, 160,  44),
-                    "light_green":  (152, 223, 138),
-                    "purple":       (148, 103, 189),
-                    "light_purple": (197, 176, 213),
-                    "brown":        (140,  86,  75),
-                    "light_brown":  (196, 156, 148),
-                    "pink":         (227, 119, 194),
-                    "light_pink":   (247, 182, 210),
-                    "gray":         (127, 127, 127),
-                    "light_gray":   (199, 199, 199),
-                    "olive":        (188, 189,  34),
-                    "light_olive":  (219, 219, 141),
-                    "teal":         ( 23, 190, 207),
-                    "light_teal":   (158, 218, 229),
-                    # extensions to reach 25
-                    "lime":         (139, 195,  74),
-                    "light_lime":   (197, 225, 165),
-                    "sea_green":    (  0, 121, 107),
-                    "violet":       ( 94,  53, 177),
-                    "gold":         (255, 196,  15),
-                    "sky_blue":     (  3, 155, 229),
-                    "slate":        (100, 116, 139),
-                }
+    def __init__(self, 
+                 supported_image_capture_devices:Dict[str, Callable], 
+                 supported_video_capture_devices:Dict[str, Callable], 
+                 colors=None):
 
-    def config_processing_pipeline(self, copy_images=True, run_colmap=True, copy_point_cloud=True, 
+        self.supported_image_capture_devices = supported_image_capture_devices
+        self.supported_video_capture_devices = supported_video_capture_devices
+
+        if colors is not None:
+            self.COLORS=colors
+        else:
+            self.COLORS = {
+                        # red is reserved for error visualisation
+                        # base: Tableau-20 minus red pair
+                        "blue":         ( 31, 119, 180),
+                        "light_blue":   (174, 199, 232),
+                        "orange":       (255, 127,  14),
+                        "light_orange": (255, 187, 120),
+                        "green":        ( 44, 160,  44),
+                        "light_green":  (152, 223, 138),
+                        "purple":       (148, 103, 189),
+                        "light_purple": (197, 176, 213),
+                        "brown":        (140,  86,  75),
+                        "light_brown":  (196, 156, 148),
+                        "pink":         (227, 119, 194),
+                        "light_pink":   (247, 182, 210),
+                        "gray":         (127, 127, 127),
+                        "light_gray":   (199, 199, 199),
+                        "olive":        (188, 189,  34),
+                        "light_olive":  (219, 219, 141),
+                        "teal":         ( 23, 190, 207),
+                        "light_teal":   (158, 218, 229),
+                        # extensions to reach 25
+                        "lime":         (139, 195,  74),
+                        "light_lime":   (197, 225, 165),
+                        "sea_green":    (  0, 121, 107),
+                        "violet":       ( 94,  53, 177),
+                        "gold":         (255, 196,  15),
+                        "sky_blue":     (  3, 155, 229),
+                        "slate":        (100, 116, 139),
+                    }
+
+    def config_processing_pipeline(self, copy_images=True, run_colmap=True, copy_point_cloud=True,
                                    transform_world_coord=False, add_statistics=True, add_camera_center_distance_error=True,
                                    add_camera_center_components_error=True, add_camera_rotation_angle_error=True, add_camera_rotation_euler_error=True,
                                    min_distance_m=0.3, min_rot_degree=10, pos_covariance=[6, 6, 6], max_num_models=4, fov_cal_colmap=True,
-                                   wfov_as_fisheye=False):
+                                   wfov_as_fisheye=False, absolute_altitude=True, chamfer_k_neighbor=1):
         self.min_distance_m = min_distance_m
         self.min_rot_degree = min_rot_degree
         self.pos_covariance = pos_covariance
@@ -86,6 +102,8 @@ class RawDataProcessingPipeline():
         self.add_statistics = add_statistics
         self.fov_cal_colmap = fov_cal_colmap
         self.wfov_as_fisheye = wfov_as_fisheye
+        self.absolute_altitude = absolute_altitude
+        self.chamfer_k_neighbor = chamfer_k_neighbor
     
     def configure_scene(self, scene_raw_dir, scene_processed_dir,  scene_description_file_name="traj_description.json",
                         scene_processed_json_file_name="scene_data.json", calibration_files_path="/code/data/",
@@ -100,6 +118,19 @@ class RawDataProcessingPipeline():
 
         self.trajectories = [item for item in Path(scene_raw_dir).iterdir()]
         self.scene_data = {}
+
+        with open(self.scene_description_file, "r") as f:
+                trajectories_description = json.load(f)
+                
+        # create a map for the capture device metadata for each trajectory
+        self.image_metadata_map = {}
+        self.video_metadata_map = {}
+        for traj_name in trajectories_description.keys():
+            if "capture_device" not in trajectories_description[traj_name]:
+                raise ValueError(f"No capture device is defined for {traj_name}")
+            else:
+                self.image_metadata_map[traj_name] = self.supported_image_capture_devices[trajectories_description[traj_name]["capture_device"]]
+                self.video_metadata_map[traj_name] = self.supported_video_capture_devices[trajectories_description[traj_name]["capture_device"]]
 
     @staticmethod
     def _get_trajectory_name(trajectory_path):
@@ -174,8 +205,12 @@ class RawDataProcessingPipeline():
             elif trajectory.is_file() and ".MP4" in trajectory.name:
                 # this is a video
                 print(f"processing video {trajectory.name}")
-                _, _ = process_video_to_images(video_file=trajectory, image_dir=dst_dir,
-                                               min_camera_distanct_m=self.min_distance_m, 
+                _, _ = process_video_to_images(video_file=trajectory,
+                                               image_dir=dst_dir,
+                                               create_image_metadata=self.image_metadata_map[trajectory_name],
+                                               create_video_metadata=self.video_metadata_map[trajectory_name],
+                                               use_absloute_altitude=self.absolute_altitude,
+                                               min_camera_distanct_m=self.min_distance_m,
                                                min_camera_rot_deg=self.min_rot_degree,
                                                debug_prints=self.debug_prints,
                                                frame_name_fn=self._get_frame_name)
@@ -302,7 +337,6 @@ class RawDataProcessingPipeline():
         
         return seleceted_reonstrcution, max_images_number
 
-
     def get_camera_fov_from_intrincic(self, intrinsic):
 
         w = float(intrinsic["w"])
@@ -371,11 +405,40 @@ class RawDataProcessingPipeline():
         except Exception as e:
             print(f"Could not copy point cloud {colmap_point_cloud_ply} due to execption {e}")
 
+    def populate_trajectories_difference_metrics(self):
+
+        trajectories_names = []			
+
+        for trajectory in self.trajectories:
+            
+            trajectory_name = self._get_trajectory_name(trajectory)
+
+            if trajectory_name is None:
+                continue
+            trajectories_names.append(trajectory_name)
         
+        trajectories_names = sorted(trajectories_names)
+
+        for traj_a in trajectories_names:
+            trajectories_matrix = {}
+            for traj_b in trajectories_names:
+                traj_distance = get_trajectories_diff(self.scene_data,
+                                                      traj_a_name=traj_a,
+                                                      traj_b_name=traj_b,
+                                                      k_neighbor_size=self.chamfer_k_neighbor)
+                trajectories_matrix[traj_b] = round(traj_distance, 3)
+
+            self.scene_data["trajectories"][traj_a]["pose_chamfer_distance_directed_colmap"] = trajectories_matrix
+
+
     def populate_frames_data(self, colmap_images_data_dict):
         # populate per frame meta data and calculate scene statistics
         # read the images per folder 
-        images_per_folder = read_images_data_from_sub_folders(self.scene_processed_dir)
+
+        images_per_folder = read_images_data_from_sub_folders(self.scene_processed_dir,
+                                                              create_image_metadata_map=self.image_metadata_map,
+                                                              use_absloute_altitude=self.absolute_altitude)
+        
         # Now we will loop over the trajectories to read the metadata
         total_frames_number = 0
 
@@ -557,6 +620,9 @@ class RawDataProcessingPipeline():
 
         self.populate_frames_data(colmap_images_data_dict)
 
+        # the trajectory metrics could only be populated after the frames data is populated
+        self.populate_trajectories_difference_metrics()
+
         colmap_frames, per_image_obser = get_colmap_registered_images_stat(colmap_images_txt)
 
         self.scene_data["colmap_reg_frames_number"] = colmap_frames
@@ -564,5 +630,11 @@ class RawDataProcessingPipeline():
 
         number_points = get_colmap_number_points(colmap_points_txt)
         self.scene_data["pointcloud_number"] = number_points
+
+        colmap_stat = run_colmap_model_analyzer(colmap_spares)
+        self.scene_data["observations"] = colmap_stat["observations"]
+        self.scene_data["mean_track_length"] = colmap_stat["mean_track_length"]
+        self.scene_data["mean_observations_per_image"] = colmap_stat["mean_observations_per_image"]
+        self.scene_data["mean_reprojection_error_px"] = colmap_stat["mean_reprojection_error_px"]
         
         self.save_scene_data_file()
