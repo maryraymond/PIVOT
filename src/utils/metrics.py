@@ -1,4 +1,4 @@
-from data_processing.utils.geometry_utils import get_rotation_diff, get_3d_point_distance
+from utils.geometry_utils import get_rotation_diff, get_3d_point_distance
 from numpy.typing import NDArray
 import numpy as np
 

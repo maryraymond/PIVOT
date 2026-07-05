@@ -4,8 +4,8 @@ import numpy as np
 from typing import List
 from numpy.typing import NDArray
 
-from data_processing.utils.metadata_utils import read_metadata_exiftool
-from data_processing.utils.metrics import get_traj_directed_chamfer_distance
+from data_processing.core.metadata_utils import read_metadata_exiftool
+from utils.metrics import get_traj_directed_chamfer_distance
 
 
 

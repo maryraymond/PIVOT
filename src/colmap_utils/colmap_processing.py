@@ -9,7 +9,7 @@ from enum import Enum
 
 from data_processing.core.camera_metadata_abc import CameraImageMetaData
 from data_processing.core.image_processing import read_images_data_from_folder
-from data_processing.utils.processing_utils import get_cameras_data
+from utils.processing_utils import get_cameras_data
 
 from colmap_utils.colmap_conversion import write_colmap_cameras_txt, write_colmap_images_txt, convert_data_to_colmap
 

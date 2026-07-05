@@ -11,27 +11,27 @@ from data_processing.core.video_processing import process_video_to_images
 
 from data_processing.core.image_processing import read_images_data_from_sub_folders, frame_num
 
-from data_processing.utils.processing_utils import get_cameras_data, get_trajectories_diff
+from utils.processing_utils import get_cameras_data, get_trajectories_diff
 
-from data_processing.utils.metrics import (get_pose_tr_distance,
-                                           get_pose_r_distance,
-                                           get_pose_t_distance,
-                                           compute_scene_diameter,
-                                           compute_aabb_diagonal)
+from utils.metrics import (get_pose_tr_distance,
+                           get_pose_r_distance,
+                           get_pose_t_distance,
+                           compute_scene_diameter,
+                           compute_aabb_diagonal)
 
 from data_processing.core.camera_metadata_abc import GpsTagsMap
 
-from data_processing.utils.geometry_utils import (get_rotation_euler_diff,
-                                                  get_rotation_diff,
-                                                  get_3d_point_distance,
-                                                  get_3d_point_xyz_diff)
+from utils.geometry_utils import (get_rotation_euler_diff,
+                                  get_rotation_diff,
+                                  get_3d_point_distance,
+                                  get_3d_point_xyz_diff)
 
-from data_processing.utils.camera_utils import (get_diag_fov_fe,
-                                  get_vertical_fov_fe,
-                                  get_horizontal_fov_fe,
-                                  get_diag_fov,
-                                  get_horizontal_fov,
-                                  get_vertical_fov)
+from utils.camera_utils import (get_diag_fov_fe,
+                                get_vertical_fov_fe,
+                                get_horizontal_fov_fe,
+                                get_diag_fov,
+                                get_horizontal_fov,
+                                get_vertical_fov)
 
 
 from colmap_utils.colmap_conversion import (read_colmap_cameras_txt,

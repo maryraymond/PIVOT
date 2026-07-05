@@ -12,9 +12,9 @@ from viser.theme import TitlebarButton, TitlebarConfig, TitlebarImage
 import numpy as np
 import plotly.graph_objects as go
 
-from data_processing.utils.processing_utils import get_poses_from_data, get_traj_frames_data
-from data_processing.utils.geometry_utils import R_to_quat, homo_pose_to_quat
-from data_processing.utils.camera_utils import get_diag_fov_fe, get_vertical_fov_fe, get_horizontal_fov_fe, get_diag_fov, get_horizontal_fov, get_vertical_fov
+from utils.processing_utils import get_poses_from_data, get_traj_frames_data
+from utils.geometry_utils import R_to_quat, homo_pose_to_quat
+from utils.camera_utils import get_diag_fov_fe, get_vertical_fov_fe, get_horizontal_fov_fe, get_diag_fov, get_horizontal_fov, get_vertical_fov
 
 def get_traj_camera_centers_pairs(scene_traj_data, traj_name, step=5):
     frames = scene_traj_data[traj_name]["frames"]
