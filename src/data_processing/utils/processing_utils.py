@@ -5,7 +5,7 @@ from typing import List
 from numpy.typing import NDArray
 
 from data_processing.utils.metadata_utils import read_metadata_exiftool
-from data_processing.utils.metrics import get_pose_chamfer_distance_directed_a_to_b, get_pose_weight_rot_distance
+from data_processing.utils.metrics import get_traj_directed_chamfer_distance
 
 
 
@@ -93,7 +93,7 @@ def get_traj_frames_data(scene_traj_data:List, trajectory_name:str,
 
 
 def get_trajectories_diff(scene_data, traj_a_name, traj_b_name, 
-                          pose_distance_fn=get_pose_weight_rot_distance, 
+                          pose_distance_fn, 
                           k_neighbor_size=1,
                           pose_type="colmap_pose_c2w"):
     
@@ -106,9 +106,9 @@ def get_trajectories_diff(scene_data, traj_a_name, traj_b_name,
     traj_a_poses = [np.array(frame["pose_c2w"]) for frame in traj_a]
     traj_b_poses = [np.array(frame["pose_c2w"]) for frame in traj_b]
 
-    traj_mean_dis = get_pose_chamfer_distance_directed_a_to_b(traj_a_poses=traj_a_poses, 
-                                                             traj_b_poses=traj_b_poses,
-                                                             pose_distance_fn=pose_distance_fn,
-                                                             k_neighbor_size=k_neighbor_size)
+    traj_mean_dis = get_traj_directed_chamfer_distance(traj_a_poses=traj_a_poses, 
+                                                       traj_b_poses=traj_b_poses,
+                                                       pose_distance_fn=pose_distance_fn,
+                                                       k_neighbor_size=k_neighbor_size)
             
     return traj_mean_dis

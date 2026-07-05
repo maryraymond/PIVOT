@@ -13,6 +13,12 @@ from data_processing.core.image_processing import read_images_data_from_sub_fold
 
 from data_processing.utils.processing_utils import get_cameras_data, get_trajectories_diff
 
+from data_processing.utils.metrics import (get_pose_tr_distance,
+                                           get_pose_r_distance,
+                                           get_pose_t_distance,
+                                           compute_scene_diameter,
+                                           compute_aabb_diagonal)
+
 from data_processing.core.camera_metadata_abc import GpsTagsMap
 
 from data_processing.utils.geometry_utils import (get_rotation_euler_diff,
@@ -86,7 +92,8 @@ class RawDataProcessingPipeline():
                                    transform_world_coord=False, add_statistics=True, add_camera_center_distance_error=True,
                                    add_camera_center_components_error=True, add_camera_rotation_angle_error=True, add_camera_rotation_euler_error=True,
                                    min_distance_m=0.3, min_rot_degree=10, pos_covariance=[6, 6, 6], max_num_models=4, fov_cal_colmap=True,
-                                   wfov_as_fisheye=False, absolute_altitude=True, chamfer_k_neighbor=1):
+                                   wfov_as_fisheye=False, absolute_altitude=True, chamfer_k_neighbor=1,
+                                   chamfer_translation_scale: str = "aabb_diagonal", chamfer_rotation_scale: float = 180.0):
         self.min_distance_m = min_distance_m
         self.min_rot_degree = min_rot_degree
         self.pos_covariance = pos_covariance
@@ -104,10 +111,12 @@ class RawDataProcessingPipeline():
         self.wfov_as_fisheye = wfov_as_fisheye
         self.absolute_altitude = absolute_altitude
         self.chamfer_k_neighbor = chamfer_k_neighbor
+        self.chamfer_translation_scale = chamfer_translation_scale
+        self.chamfer_rotation_scale = chamfer_rotation_scale
     
-    def configure_scene(self, scene_raw_dir, scene_processed_dir,  scene_description_file_name="traj_description.json",
+    def configure_scene(self, scene_raw_dir, scene_processed_dir, scene_description_file_name="traj_description.json",
                         scene_processed_json_file_name="scene_data.json", calibration_files_path="/code/data/",
-                        colmap_folder_name="PYCOLMAP_soft_prior"):
+                        colmap_folder_name="PYCOLMAP_soft_prior", trajectories=None):
         self.scene_raw_dir = scene_raw_dir
         self.scene_description_file = f"{scene_raw_dir}/{scene_description_file_name}"
         self.calibration_files_path = calibration_files_path
@@ -115,8 +124,12 @@ class RawDataProcessingPipeline():
         self.scene_processed_dir = scene_processed_dir
         self.scene_processed_json = f"{scene_processed_dir}/{scene_processed_json_file_name}"
         self.scene_colmap = f"{scene_processed_dir}/{colmap_folder_name}"
+        self.scene_trajectories_dir = f"{scene_processed_dir}/trajectories"
 
-        self.trajectories = [item for item in Path(scene_raw_dir).iterdir()]
+        if trajectories is not None:
+            self.trajectories = [Path(scene_raw_dir) / t for t in trajectories]
+        else:
+            self.trajectories = [item for item in Path(scene_raw_dir).iterdir()]
         self.scene_data = {}
 
         with open(self.scene_description_file, "r") as f:
@@ -187,14 +200,15 @@ class RawDataProcessingPipeline():
         # if the type is a file with .mp4 extension then we will process them to the correspodning location
 
         # images copy and video processing
+        os.makedirs(self.scene_trajectories_dir, exist_ok=True)
         for trajectory in self.trajectories:
 
             trajectory_name = self._get_trajectory_name(trajectory)
 
             if trajectory_name is None:
                 continue
-        
-            dst_dir = f"{self.scene_processed_dir}/{trajectory_name}"
+
+            dst_dir = f"{self.scene_trajectories_dir}/{trajectory_name}"
             os.makedirs(dst_dir, exist_ok=True)
             
             if trajectory.is_dir():
@@ -419,23 +433,71 @@ class RawDataProcessingPipeline():
         
         trajectories_names = sorted(trajectories_names)
 
+        # we need to measure the translation scale, we have two methods
+        # aabb digonal or scene diameter, ideally this need to be configured
+        camera_centers = [np.array(frame_data["colmap_pose_c2w"])[:3, 3]  \
+                          for traj in trajectories_names \
+                          for frame_data in self.scene_data["trajectories"][traj]["frames"] \
+                          if "colmap_pose_c2w" in frame_data]
+        
+        scene_diameter = compute_scene_diameter(camera_centers)
+        aabb_diagonal = compute_aabb_diagonal(camera_centers)
+
+        if self.chamfer_translation_scale == "scene_diameter":
+            translation_scale = scene_diameter
+        else:  # "aabb_diagonal"
+            translation_scale = aabb_diagonal
+
+        self.scene_data["scene_diameter"] = round(scene_diameter, 3)
+        self.scene_data["aabb_diagonal"] = round(aabb_diagonal, 3)
+
         for traj_a in trajectories_names:
             trajectories_matrix = {}
             for traj_b in trajectories_names:
-                traj_distance = get_trajectories_diff(self.scene_data,
-                                                      traj_a_name=traj_a,
-                                                      traj_b_name=traj_b,
-                                                      k_neighbor_size=self.chamfer_k_neighbor)
-                trajectories_matrix[traj_b] = round(traj_distance, 3)
+                trajectories_matrix[traj_b] = {}
 
-            self.scene_data["trajectories"][traj_a]["pose_chamfer_distance_directed_colmap"] = trajectories_matrix
+                traj_tr_distance = get_trajectories_diff(self.scene_data,
+                                                    traj_a_name=traj_a,
+                                                    traj_b_name=traj_b,
+                                                    k_neighbor_size=self.chamfer_k_neighbor,
+                                                    pose_distance_fn=lambda pose_a, pose_b, _ts=translation_scale: (
+                                                        get_pose_tr_distance(pose_a=pose_a,
+                                                                             pose_b=pose_b,
+                                                                             translation_scale=_ts,
+                                                                             rotation_scale=self.chamfer_rotation_scale)
+                                                    ))
+                trajectories_matrix[traj_b]["directed_norm_chamfer_tr_distance"] = round(traj_tr_distance, 3)
+
+                traj_t_distance = get_trajectories_diff(self.scene_data,
+                                                    traj_a_name=traj_a,
+                                                    traj_b_name=traj_b,
+                                                    k_neighbor_size=self.chamfer_k_neighbor,
+                                                    pose_distance_fn=lambda pose_a, pose_b, _ts=translation_scale: (
+                                                        get_pose_t_distance(pose_a=pose_a,
+                                                                            pose_b=pose_b,
+                                                                            translation_scale=_ts)
+                                                    ))
+                trajectories_matrix[traj_b]["directed_norm_chamfer_t_distance"] = round(traj_t_distance, 3)
+
+                traj_r_distance = get_trajectories_diff(self.scene_data,
+                                                    traj_a_name=traj_a,
+                                                    traj_b_name=traj_b,
+                                                    k_neighbor_size=self.chamfer_k_neighbor,
+                                                    pose_distance_fn=lambda pose_a, pose_b: (
+                                                        get_pose_r_distance(pose_a=pose_a,
+                                                                            pose_b=pose_b,
+                                                                            rotation_scale=self.chamfer_rotation_scale)
+                                                    ))
+                trajectories_matrix[traj_b]["directed_norm_chamfer_r_distance"] = round(traj_r_distance, 3)
+
+            self.scene_data["trajectories"][traj_a]["trajectory_metrics"] = trajectories_matrix
 
 
     def populate_frames_data(self, colmap_images_data_dict):
         # populate per frame meta data and calculate scene statistics
         # read the images per folder 
 
-        images_per_folder = read_images_data_from_sub_folders(self.scene_processed_dir,
+        images_per_folder = read_images_data_from_sub_folders(self.scene_trajectories_dir,
                                                               create_image_metadata_map=self.image_metadata_map,
                                                               use_absloute_altitude=self.absolute_altitude)
         
@@ -462,13 +524,13 @@ class RawDataProcessingPipeline():
             
             frames = []
             for frame in images_per_folder[trajectory_name]:
-                frame_full_name = f"{trajectory_name}/{frame['file_name']}"
+                colmap_key = f"{trajectory_name}/{frame['file_name']}"
                 frame_full = {}
-                frame_full["file_name"] = frame_full_name
+                frame_full["file_name"] = f"trajectories/{trajectory_name}/{frame['file_name']}"
                 frame_full["measured_pose_c2w"] = frame["pose_c2w"]
 
-                if frame_full_name in colmap_images_data_dict:
-                    c2w_colmap = colmap_images_data_dict[frame_full_name]["pose_c2w"]
+                if colmap_key in colmap_images_data_dict:
+                    c2w_colmap = colmap_images_data_dict[colmap_key]["pose_c2w"]
                     frame_full["colmap_pose_c2w"] = c2w_colmap
                     # add difference
                     if self.add_statistics:
@@ -585,7 +647,7 @@ class RawDataProcessingPipeline():
                 traj_camera_map = self.get_traj_to_camera_type_map()
             else:
                 traj_camera_map = None
-            run_colmap_with_soft_priors(dataset_images_dir=Path(self.scene_processed_dir), colmap_dir=Path(self.scene_colmap),
+            run_colmap_with_soft_priors(dataset_images_dir=Path(self.scene_trajectories_dir), colmap_dir=Path(self.scene_colmap),
                                         pos_var=self.pos_covariance, update_positions=True, cartesian_system=True,
                                         camera_mode=CameraMode.PER_FOLDER, max_num_models=self.max_num_models, camera_model_map=traj_camera_map)
             

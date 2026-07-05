@@ -294,10 +294,10 @@ def make_trajectory_distance_heatmap(
     )
 
     fig.update_layout(
-        title=title,
-        xaxis_title="Reference Trajectory",
-        yaxis_title="Query Trajectory",
-        margin=dict(l=1, r=10, t=20, b=1),
+        title=None,
+        xaxis_title=None,
+        yaxis_title=None,
+        margin=dict(l=1, r=1, t=1, b=1),
         showlegend=False,
         width=max(800, len(traj_names) * 60),
         height=max(800, len(traj_names) * 60),
@@ -554,25 +554,31 @@ class SceneVisualization():
 
     def add_scene_heatmap_plot(self):
 
-        traj_matrix = {}
-        for traj in self.scene_data["trajectories"].keys():
-            traj_matrix[traj] = self.scene_data["trajectories"][traj]["pose_chamfer_distance_directed_colmap"]
+        trajectories = self.scene_data["trajectories"]
+        traj_names = sorted(trajectories.keys())
+
+        traj_matrix = {
+            traj_a: {
+                traj_b: trajectories[traj_a]["trajectory_metrics"][traj_b]["directed_norm_chamfer_tr_distance"]
+                for traj_b in traj_names
+            }
+            for traj_a in traj_names
+        }
 
         fig = make_trajectory_distance_heatmap(
             traj_matrix,
             title="",
-            colorscale="Viridis"
+            colorscale="Viridis",
         )
 
         server = self.viser_visualization.get_server()
 
-        with server.gui.add_folder("Scene trajectories Chamfer Distance heatmap", expand_by_default=False):
+        with server.gui.add_folder("Scene Trajectories Chamfer Distance", expand_by_default=False):
             heatmap_plot = server.gui.add_plotly(
                 fig,
                 aspect=1,
                 config={"displayModeBar": True,
-                        "scrollZoom": True,},
-                
+                        "scrollZoom": True},
             )
 
         self.scene_vis_dict["scene_heatmap_plot"] = heatmap_plot

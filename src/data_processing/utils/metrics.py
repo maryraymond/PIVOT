@@ -2,16 +2,66 @@ from data_processing.utils.geometry_utils import get_rotation_diff, get_3d_point
 from numpy.typing import NDArray
 import numpy as np
 
-def get_pose_weight_rot_distance(pose_a:NDArray, pose_b:NDArray, rot_w:float=0.1):
-    d_t = get_3d_point_distance(pose_a[:3, 3].tolist(), pose_b[:3, 3].tolist())
-    d_r = get_rotation_diff(pose_a[:3, :3], pose_b[:3,:3])
+def compute_scene_diameter(camera_centers):
+    pts = np.asarray(camera_centers)
 
-    d = np.abs(d_t) + (rot_w * np.abs(d_r))
+    max_dist = 0.0
+    for i in range(len(pts)):
+        dists = np.linalg.norm(pts[i+1:] - pts[i], axis=1)
+        if len(dists):
+            max_dist = max(max_dist, dists.max())
 
-    return d
+    return float(max_dist)
 
-def get_pose_k_nearest_neighbor(pose, ref_poses, k=1,
-                                pose_distance_fn=get_pose_weight_rot_distance):
+def compute_aabb_diagonal(camera_centers):
+    pts = np.asarray(camera_centers)
+    bbox_min = pts.min(axis=0)
+    bbox_max = pts.max(axis=0)
+
+    scene_scale = np.linalg.norm(bbox_max - bbox_min).item()
+
+    return scene_scale
+
+def get_pose_t_distance(pose_a:NDArray,
+                        pose_b:NDArray,
+                        translation_scale:float=1.0, 
+                        translation_weight:float=1.0):
+    d_t = translation_weight * (get_3d_point_distance(pose_a[:3, 3].tolist(), pose_b[:3, 3].tolist()) / translation_scale)
+
+    return np.abs(d_t).item()
+
+def get_pose_r_distance(pose_a:NDArray,
+                        pose_b:NDArray,
+                        rotation_scale:float=1.0,
+                        rotation_weight:float=1.0):
+    d_r = rotation_weight * (get_rotation_diff(pose_a[:3, :3], pose_b[:3,:3]) / rotation_scale)
+
+    return np.abs(d_r).item()
+
+
+def get_pose_tr_distance(pose_a:NDArray, pose_b:NDArray, 
+                                          translation_scale:float=1.0, rotation_scale:float=1,
+                                          translation_weight:float=1.0, rotation_weight:float=1.0):
+    
+    d_t = get_pose_t_distance(pose_a=pose_a, 
+                              pose_b=pose_b,
+                              translation_scale=translation_scale, 
+                              translation_weight=translation_weight)
+    
+    d_r = get_pose_r_distance(pose_a=pose_a, 
+                              pose_b=pose_b,
+                              rotation_scale=rotation_scale, 
+                              rotation_weight=rotation_weight)
+
+    d_tr = (0.5 * d_t) + (0.5 * d_r)
+
+    return d_tr
+
+
+def get_pose_k_nearest_neighbor(pose, 
+                                ref_poses,
+                                pose_distance_fn, 
+                                k=1):
     pose_distances = []
     for ref_pose in ref_poses:
         pose_distances.append(pose_distance_fn(pose, ref_pose))
@@ -22,41 +72,40 @@ def get_pose_k_nearest_neighbor(pose, ref_poses, k=1,
 
     return nearest_pose, distance, nearest_ids
 
-def get_pose_chamfer_distance_directed_a_to_b(traj_a_poses,
-                                             traj_b_poses,
-                                             pose_distance_fn=get_pose_weight_rot_distance,
-                                             k_neighbor_size=1):
-    if len(traj_a_poses) == 0 or len(traj_b_poses) == 0:
-        return float("nan")
-
+def get_traj_directed_chamfer_distance(traj_a_poses, 
+                                       traj_b_poses, 
+                                       pose_distance_fn,
+                                       k_neighbor_size=1):
     traj_a_distances = []
-
+    traj_a_nearest_pose = []
+    
     #TODO: This is brute force need to be changed to something smarted
     for pose_a in traj_a_poses:
-        _, distance, _ = get_pose_k_nearest_neighbor(pose_a,
-                                                     traj_b_poses,
-                                                     pose_distance_fn=pose_distance_fn,
-                                                     k=k_neighbor_size)
+        nearest_pose, distance, _ = get_pose_k_nearest_neighbor(pose_a, 
+                                                                traj_b_poses, 
+                                                                pose_distance_fn=pose_distance_fn,
+                                                                k=k_neighbor_size)
         traj_a_distances.append(distance)
-
+        traj_a_nearest_pose.append(nearest_pose)
+    
     traj_a_to_b_distance = np.mean(traj_a_distances).item()
 
     return traj_a_to_b_distance
 
 
-def get_pose_chamfer_distance_symmetric(traj_a_poses, 
-                                     traj_b_poses, 
-                                     pose_distance_fn=get_pose_weight_rot_distance,
-                                     k_neighbor_size=1):
+def get_traj_symmetric_chamfer_distance(traj_a_poses, 
+                                        traj_b_poses, 
+                                        pose_distance_fn,
+                                        k_neighbor_size=1):
     
-    traj_a_to_b_distance = get_pose_chamfer_distance_directed_a_to_b(traj_a_poses=traj_a_poses,
+    traj_a_to_b_distance = get_traj_directed_chamfer_distance(traj_a_poses=traj_a_poses,
                                                                      traj_b_poses=traj_b_poses,
                                                                      pose_distance_fn=pose_distance_fn,
                                                                      k_neighbor_size=k_neighbor_size)
     
-    traj_b_to_a_distance = get_pose_chamfer_distance_directed_a_to_b(traj_a_poses=traj_b_poses,
+    traj_b_to_a_distance = get_traj_directed_chamfer_distance(traj_a_poses=traj_b_poses,
                                                                      traj_b_poses=traj_a_poses,
                                                                      pose_distance_fn=pose_distance_fn,
                                                                      k_neighbor_size=k_neighbor_size)
 
-    return (traj_a_to_b_distance + traj_b_to_a_distance) / 2
+    return (0.5* traj_a_to_b_distance) + (0.5* traj_b_to_a_distance)

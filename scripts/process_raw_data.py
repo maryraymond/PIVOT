@@ -52,6 +52,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Output scene data JSON filename (default: scene_data.json).")
     parser.add_argument("--colmap-folder", default="PYCOLMAP_soft_prior",
                         help="Name of the COLMAP output subdirectory (default: PYCOLMAP_soft_prior).")
+    parser.add_argument("--trajectories", nargs="+", default=None,
+                        help="Explicit list of trajectory names to process (space-separated). "
+                             "Names are resolved relative to --scene-raw-dir. "
+                             "If omitted, all entries under --scene-raw-dir are used.")
 
     # --- pipeline steps ---
     parser.add_argument("--copy-images", action=argparse.BooleanOptionalAction, default=True,
@@ -91,6 +95,11 @@ def build_parser() -> argparse.ArgumentParser:
     # --- trajectory difference metric ---
     parser.add_argument("--chamfer-k-neighbor", type=int, default=1,
                         help="Number of nearest neighbours used for the directed pose Chamfer distance (default: 1).")
+    parser.add_argument("--chamfer-translation-scale", default="aabb_diagonal",
+                        choices=["aabb_diagonal", "scene_diameter"],
+                        help="Scene scale used to normalise the translation component of the Chamfer distance (default: aabb_diagonal).")
+    parser.add_argument("--chamfer-rotation-scale", type=float, default=180.0,
+                        help="Maximum rotation angle (degrees) used to normalise the rotation component of the Chamfer distance (default: 180).")
 
     # --- camera model flags ---
     parser.add_argument("--use-fisheye-for-wfov", action=argparse.BooleanOptionalAction, default=True,
@@ -121,6 +130,8 @@ def main():
         max_num_models=args.max_num_models,
         wfov_as_fisheye=args.use_fisheye_for_wfov,
         chamfer_k_neighbor=args.chamfer_k_neighbor,
+        chamfer_translation_scale=args.chamfer_translation_scale,
+        chamfer_rotation_scale=args.chamfer_rotation_scale,
     )
 
     raw_data_pipeline.configure_scene(
@@ -130,6 +141,7 @@ def main():
         scene_processed_json_file_name=args.scene_output_json,
         calibration_files_path=args.calibration_files_path,
         colmap_folder_name=args.colmap_folder,
+        trajectories=args.trajectories,
     )
 
     raw_data_pipeline.process_scene_from_raw(debug_prints=True)
