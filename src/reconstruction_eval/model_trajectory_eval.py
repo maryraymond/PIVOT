@@ -5,6 +5,7 @@ import torch
 import cv2
 import os
 import numpy as np
+from typing import Dict
 
 from torchmetrics.image import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity

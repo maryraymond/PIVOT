@@ -179,7 +179,7 @@ class RawDataProcessingPipeline():
             else:
                 raise ValueError(f"Missing description for trajectory {trajectory_name}")
             
-            if trajectory.is_file() and ".MP4" in trajectory.name:
+            if trajectory.is_file() and trajectory.suffix.upper() == ".MP4":
                 self.scene_data["trajectories"][trajectory_name]["sampling_method"] = "distance_and_rot"
                 self.scene_data["trajectories"][trajectory_name]["sample_details"] = {
                     "min_distance_m": self.min_distance_m,
@@ -216,7 +216,7 @@ class RawDataProcessingPipeline():
                 print("processing images")
                 self.copy_image_dir(trajectory, dst_dir)
                 
-            elif trajectory.is_file() and ".MP4" in trajectory.name:
+            elif trajectory.is_file() and trajectory.suffix.upper() == ".MP4":
                 # this is a video
                 print(f"processing video {trajectory.name}")
                 _, _ = process_video_to_images(video_file=trajectory,
