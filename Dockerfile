@@ -27,7 +27,7 @@ ENV TZ=Europe/Berlin
 ENV CUDA_HOME="/usr/local/cuda"
 
 ENV PYTHONPATH=/workspace/src
-ENV PYTHONPATH=/workspace/sripts
+ENV PYTHONPATH=${PYTHONPATH}:/workspace/scripts
 
 # Install required apt packages and clear cache afterwards.
 RUN apt-get update && \

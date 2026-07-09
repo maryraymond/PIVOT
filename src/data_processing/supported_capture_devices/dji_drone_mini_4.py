@@ -1,3 +1,8 @@
+# PIVOT: Pose, Intrinsics and Viewpoint Oriented Testbed
+# Copyright (c) 2026 Mary Raymond
+# Date: 2026-07-07
+# MIT License — see LICENSE in the project root for details.
+
 from data_processing.core.camera_metadata_abc import CameraTagsMap, CameraImageMetaData, GpsTagsMap, CameraVideoMetaData
 from data_processing.core.metadata_utils import (read_metadata_exiftool, get_gps_value, get_camera_rotation,
                                                   write_gps_tags, write_standard_gps_tags, write_camera_tags,

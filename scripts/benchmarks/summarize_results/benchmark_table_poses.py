@@ -1,3 +1,8 @@
+# PIVOT: Pose, Intrinsics and Viewpoint Oriented Testbed
+# Copyright (c) 2026 Mary Raymond
+# Date: 2026-07-07
+# MIT License — see LICENSE in the project root for details.
+
 """
 Parse a benchmark experiment root and produce a CSV table matching the
 Benchmark-1 quantitative results format:
