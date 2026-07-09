@@ -1,8 +1,4 @@
 # temporary
-cp /code/nerfstudio/scripts/eval.py  /home/user/nerfstudio/nerfstudio/scripts/eval.py
-cp /code/nerfstudio/scripts/nerfstudio_drone_eval.py  /home/user/nerfstudio/nerfstudio/scripts/nerfstudio_drone_eval.py
-cp /code/nerfstudio/data/dataparsers/nerfstudio_dataparser.py  /home/user/nerfstudio/nerfstudio/data/dataparsers/nerfstudio_dataparser.py
-cp /code/nerfstudio/cameras/cameras.py  /home/user/nerfstudio/nerfstudio/cameras/cameras.py
 
 ## Novel View Generalisation Benchmark (BM-NV)
 #
@@ -20,11 +16,6 @@ cp /code/nerfstudio/cameras/cameras.py  /home/user/nerfstudio/nerfstudio/cameras
 # Note: eval includes 4:3 panoramas alongside 16:9 training data (mixed intrinsics).
 #       The dataparser and cameras.py copies above are required for this to work.
 
-## input for the script
-# ROOT_DIR="/workspace/datasets/"
-# SCENE_NAME="backyard_sunny"
-# EXP_FOLDER="exp_ds_bm_nv"
-# NUM_ITERATIONS=30000
 
 ROOT_DIR="$1"
 SCENE_NAME="$2"

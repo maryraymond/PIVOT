@@ -44,6 +44,13 @@ from colmap_utils.colmap_conversion import (read_colmap_cameras_txt,
 from colmap_utils.colmap_processing import run_colmap_with_soft_priors, CameraMode
 
 
+def _make_metadata_dispatcher(metadata_map):
+    def dispatch(image_path, use_absolute_altitude):
+        traj_name = Path(image_path).parent.name
+        return metadata_map[traj_name](image_path, use_absolute_altitude)
+    return dispatch
+
+
 class RawDataProcessingPipeline():
     
     def __init__(self, 
@@ -647,7 +654,9 @@ class RawDataProcessingPipeline():
                 traj_camera_map = self.get_traj_to_camera_type_map()
             else:
                 traj_camera_map = None
-            run_colmap_with_soft_priors(dataset_images_dir=Path(self.scene_trajectories_dir), colmap_dir=Path(self.scene_colmap),
+            run_colmap_with_soft_priors(dataset_images_dir=Path(self.scene_trajectories_dir),
+                                        create_image_metadata=_make_metadata_dispatcher(self.image_metadata_map),
+                                        colmap_dir=Path(self.scene_colmap),
                                         pos_var=self.pos_covariance, update_positions=True, cartesian_system=True,
                                         camera_mode=CameraMode.PER_FOLDER, max_num_models=self.max_num_models, camera_model_map=traj_camera_map)
             

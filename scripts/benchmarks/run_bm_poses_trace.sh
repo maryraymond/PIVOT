@@ -1,14 +1,3 @@
-# temproary
-cp /code/nerfstudio/scripts/eval.py  /home/user/nerfstudio/nerfstudio/scripts/eval.py
-cp /code/nerfstudio/scripts/nerfstudio_drone_eval.py  /home/user/nerfstudio/nerfstudio/scripts/nerfstudio_drone_eval.py
-
-
-#input for the script
-# ROOT_DIR="/workspace/datasets/"
-# SCENE_NAME="backyard_sunny"
-# EXP_FOLDER="exp_ds_02"
-# NUM_ITERATIONS=1000
-
 ROOT_DIR="$1"
 SCENE_NAME="$2"
 EXP_FOLDER="$3"

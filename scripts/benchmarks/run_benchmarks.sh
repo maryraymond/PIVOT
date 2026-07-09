@@ -1,7 +1,8 @@
-ROOT_DIR="/workspace/datasets"
+ROOT_DIR="$1"
+SCENE_NAME="$2"
+EXP_NAME="$3"
 
-EXP_NAME="exp_ds_bm_poses"
-sh /code/scripts/run_bm_poses_trace.sh ${ROOT_DIR} "backyard_sunny" ${EXP_NAME} 30000
+sh /code/scripts/run_bm_poses_trace.sh ${ROOT_DIR} ${SCENE_NAME} ${EXP_NAME} 30000
 
 
 python3 /code/scripts/src/benchmark_table_poses.py \
@@ -14,7 +15,7 @@ python3 /code/scripts/src/benchmark_qualitative_poses.py \
     --out-dir /workspace/outputs/${EXP_NAME}/output_plots 
 
 EXP_NAME="exp_ds_bm_cam_cal"
-sh /code/scripts/run_bm_cam_calibr_trace.sh ${ROOT_DIR} "backyard_sunny" ${EXP_NAME} 30000
+sh /code/scripts/run_bm_cam_calibr_trace.sh ${ROOT_DIR} ${SCENE_NAME} ${EXP_NAME} 30000
 
 
 python3 /code/scripts/src/benchmark_table_cam_calibr.py \
@@ -28,7 +29,7 @@ python3 /code/scripts/src/benchmark_qualitative_cam_calibr.py \
 
 
 EXP_NAME="exp_ds_bm_nv"
-sh /code/scripts/run_bm_nv_trace.sh ${ROOT_DIR} "backyard_sunny" ${EXP_NAME} 60000
+sh /code/scripts/run_bm_nv_trace.sh ${ROOT_DIR} ${SCENE_NAME} ${EXP_NAME} 60000
 
 
 python3 /code/scripts/src/benchmark_table_nv.py \

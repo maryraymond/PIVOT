@@ -1,14 +1,3 @@
-# temproary
-cp /code/nerfstudio/scripts/eval.py  /home/user/nerfstudio/nerfstudio/scripts/eval.py
-cp /code/nerfstudio/scripts/nerfstudio_drone_eval.py  /home/user/nerfstudio/nerfstudio/scripts/nerfstudio_drone_eval.py
-cp /code/nerfstudio/data/dataparsers/nerfstudio_dataparser.py  /home/user/nerfstudio/nerfstudio/data/dataparsers/nerfstudio_dataparser.py
-cp /code/nerfstudio/cameras/cameras.py  /home/user/nerfstudio/nerfstudio/cameras/cameras.py
-
-## input for the script
-# ROOT_DIR="/workspace/datasets/"
-# SCENE_NAME="backyard_sunny"
-# EXP_FOLDER="exp_ds_04"
-# NUM_ITERATIONS=1000
 
 ROOT_DIR="$1"
 SCENE_NAME="$2"
@@ -19,7 +8,7 @@ DST_DS=${SCENE_NAME}_bm_03_opt_camera
 TIME_STAMP=${SCENE_NAME}_opt_camera
 echo ${TIME_STAMP}
 
-python /code/scripts/exp/nerfstudio_integration.py \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --scene-config '{
