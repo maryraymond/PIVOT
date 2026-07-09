@@ -94,7 +94,7 @@ DST_DS=${SCENE_NAME}_bm_03_calib_camera
 TIME_STAMP=${SCENE_NAME}_calib_camera
 echo ${TIME_STAMP}
 
-python /code/scripts/exp/nerfstudio_integration.py \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --scene-config '{

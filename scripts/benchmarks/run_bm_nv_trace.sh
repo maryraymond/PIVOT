@@ -26,7 +26,7 @@ DST_DS=${SCENE_NAME}_bm_nv
 TIME_STAMP=${SCENE_NAME}_bm_nv
 echo ${TIME_STAMP}
 
-python /code/scripts/exp/nerfstudio_integration.py \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --scene-config '{
@@ -171,7 +171,7 @@ python /code/scripts/exp/nerfstudio_integration.py \
 # A workaround for training NeRF since evaluation with images of different resolutions is not supported
 DST_DS_NERF=${SCENE_NAME}_bm_nv_nerf
 
-python /code/scripts/exp/nerfstudio_integration.py \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS_NERF} \
   --scene-config '{

@@ -9,7 +9,7 @@ TIME_STAMP=${SCENE_NAME}_measRT
 
 echo ${TIME_STAMP}
 
-python /code/scripts/exp/nerfstudio_integration.py \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --scene-config '{
@@ -94,7 +94,7 @@ DST_DS=${SCENE_NAME}_bm_01_optRT
 TIME_STAMP=${SCENE_NAME}_optRT
 echo ${TIME_STAMP}
 
-python /code/scripts/exp/nerfstudio_integration.py \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --scene-config '{
@@ -177,7 +177,7 @@ DST_DS=${SCENE_NAME}_bm_01_optR_measT
 TIME_STAMP=${SCENE_NAME}_optR_measT
 echo ${TIME_STAMP}
 
-python /code/scripts/exp/nerfstudio_integration.py \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --scene-config '{
@@ -262,7 +262,7 @@ TIME_STAMP=${SCENE_NAME}_optT_measR
 
 echo ${TIME_STAMP}
 
-python /code/scripts/exp/nerfstudio_integration.py \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --scene-config '{
