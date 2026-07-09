@@ -579,7 +579,7 @@ drone_3d_dataset/
   title        = {PIVOT: Pose, Intrinsics and Viewpoint Oriented Testbed},
   author       = {Mary Raymond},
   year         = {2026},
-  howpublished = {\url{https://github.com/yourname/pivot}},
+  howpublished = {\url{https://github.com/maryraymond/PIVOT.git}},
   note         = {Accessed: 2027-01-15}
 }
 ```
