@@ -76,28 +76,42 @@ This gives a rich, non-redundant sampling of the viewpoint space around a scene 
 
 #### Core Trajectories (captured for every scene)
 
-| Trajectory                     | Motion                | Altitude    | Camera                | Lens     | Mode   |
-| ------------------------------ | --------------------- | ----------- | --------------------- | -------- | ------ |
-| `orbit_inward_low`           | Circular orbit        | Low         | Inward-facing         | Standard | Video  |
-| `orbit_inward_mid`           | Circular orbit        | Mid         | Inward-facing         | Standard | Video  |
-| `orbit_inward_high`          | Circular orbit        | High        | Inward-facing         | Standard | Video  |
-| `traversal_forward_low`      | Linear fly-through    | Low         | Outward               | Wide FOV | Video  |
-| `traversal_backward_low`     | Linear fly-through    | Low         | Outward               | Wide FOV | Video  |
-| `traversal_left_low`         | Linear fly-through    | Low         | Outward               | Wide FOV | Video  |
-| `traversal_right_low`        | Linear fly-through    | Low         | Outward               | Wide FOV | Video  |
-| `bev_orbit_area`             | High-alt nadir orbit  | High        | Nadir (straight down) | Standard | Video  |
-| `rocket_upward`              | Vertical ascent       | Low → High | Nadir                 | Wide FOV | Video  |
-| `scattered_low`              | Random hover points   | Low         | Nadir                 | Standard | Photos |
-| `panorama_360_station_a/b/c` | Fixed-point 360° pan | Low → Mid  | Outward               | Standard | Photos |
-| `traverse_loop_low`          | Closed loop path      | Low         | Outward               | Standard | Video  |
+| Trajectory | Motion | Altitude | Camera | Lens | Resolution | Aspect | Mode | Path closed |
+|---|---|---|---|---|---|---|---|---|
+| `orbit_inward_low` | Circular orbit | Low | Inward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
+| `orbit_inward_mid` | Circular orbit | Mid | Inward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
+| `orbit_inward_high` | Circular orbit | High | Inward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
+| `traversal_forward_low` | Traversal | Low | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `traversal_backward_low` | Traversal | Low | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `traversal_left_low` | Traversal | Low | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `traversal_right_low` | Traversal | Low | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `traverse_loop_low` | Traverse loop | Low | Along track | Standard | 3840×2160 | 16:9 | Video | ✓ |
+| `bev_orbit_area` | BEV orbit | High | Nadir | Standard | 3840×2160 | 16:9 | Video | ✓ |
+| `rocket_upward` | Vertical ascent | Low → High | Inward-facing | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `scattered_low` | Scattered | Low | Multi-angle | Standard | 3840×2160 | 16:9 | Photos | ✗ |
+| `panorama_360_station_a` | Panorama 360 | Low | Sweep 360° | Standard | 4032×3024 | 4:3 | Photos | ✓ |
+| `panorama_360_station_b` | Panorama 360 | Low | Sweep 360° | Standard | 4032×3024 | 4:3 | Photos | ✓ |
+| `panorama_360_station_c` | Panorama 360 | Low | Sweep 360° | Standard | 4032×3024 | 4:3 | Photos | ✓ |
 
 #### Optional Trajectories
 
-| Trajectory                             | Motion              | Altitude   | Camera         | Lens     |
-| -------------------------------------- | ------------------- | ---------- | -------------- | -------- |
-| `orbit_outward`                      | Circular orbit      | Low → Mid | Outward-facing | Standard |
-| `bev_traverse_area`                  | Grid nadir sweep    | High       | Nadir          | Standard |
-| `scattered_mid` / `scattered_high` | Random hover points | Mid / High | Nadir          | Standard |
+| Trajectory | Motion | Altitude | Camera | Lens | Resolution | Aspect | Mode | Path closed |
+|---|---|---|---|---|---|---|---|---|
+| `orbit_outward_low` | Circular orbit | Low | Outward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
+| `orbit_outward_mid` | Circular orbit | Mid | Outward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
+| `orbit_outward_high` | Circular orbit | High | Outward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
+| `traversal_forward_mid` | Traversal | Mid | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `traversal_backward_mid` | Traversal | Mid | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `traversal_left_mid` | Traversal | Mid | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `traversal_right_mid` | Traversal | Mid | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `traversal_forward_high` | Traversal | High | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `traversal_backward_high` | Traversal | High | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `traversal_left_high` | Traversal | High | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `traversal_right_high` | Traversal | High | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `bev_traverse_area` | BEV traverse | High | Nadir | Standard | 3840×2160 | 16:9 | Video | ✗ |
+| `rocket_downward` | Vertical descent | High → Low | Inward-facing | Wide | 3840×2160 | 16:9 | Video | ✗ |
+| `scattered_mid` | Scattered | Mid | Multi-angle | Standard | 3840×2160 | 16:9 | Photos | ✗ |
+| `scattered_high` | Scattered | High | Multi-angle | Standard | 3840×2160 | 16:9 | Photos | ✗ |
 
 ---
 

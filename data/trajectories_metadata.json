@@ -284,6 +284,36 @@
         "capture_mode": "video_frames",
         "capture_device": "dji_drone_mini_4_pro"
     },
+    "traversal_left_mid": {
+        "mandatory_level": "optional",
+        "motion_type": "traversal",
+        "altitude_band": "mid",
+        "path_closed": false,
+        "camera_direction": "along_track",
+        "lens_type": "wide_fov",
+        "res": [
+            3840,
+            2160
+        ],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
+    },
+    "traversal_right_mid": {
+        "mandatory_level": "optional",
+        "motion_type": "traversal",
+        "altitude_band": "mid",
+        "path_closed": false,
+        "camera_direction": "along_track",
+        "lens_type": "wide_fov",
+        "res": [
+            3840,
+            2160
+        ],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
+    },
     "traversal_forward_high": {
         "mandatory_level": "optional",
         "motion_type": "traversal",
@@ -300,6 +330,36 @@
         "capture_device": "dji_drone_mini_4_pro"
     },
     "traversal_backward_high": {
+        "mandatory_level": "optional",
+        "motion_type": "traversal",
+        "altitude_band": "high",
+        "path_closed": false,
+        "camera_direction": "along_track",
+        "lens_type": "wide_fov",
+        "res": [
+            3840,
+            2160
+        ],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
+    },
+    "traversal_left_high": {
+        "mandatory_level": "optional",
+        "motion_type": "traversal",
+        "altitude_band": "high",
+        "path_closed": false,
+        "camera_direction": "along_track",
+        "lens_type": "wide_fov",
+        "res": [
+            3840,
+            2160
+        ],
+        "aspect_ratio": "16:9",
+        "capture_mode": "video_frames",
+        "capture_device": "dji_drone_mini_4_pro"
+    },
+    "traversal_right_high": {
         "mandatory_level": "optional",
         "motion_type": "traversal",
         "altitude_band": "high",
