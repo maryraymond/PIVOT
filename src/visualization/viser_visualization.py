@@ -610,23 +610,25 @@ class SceneVisualization():
 
         measured, optimized = get_traj_camera_centers_pairs(self.scene_data["trajectories"], traj_name, step=1)
 
-        optimized_centers = np.asarray(optimized, dtype=np.float32)
-        measured_centers = np.asarray(measured, dtype=np.float32)
-        error_segments = np.stack(
-                                    [optimized_centers, measured_centers],
-                                    axis=1
-                                )
-        
-        color = [color_comp/255 for color_comp in color]
+        if len(measured) > 0 and len(optimized) > 0:
+            optimized_centers = np.asarray(optimized, dtype=np.float32)
+            measured_centers = np.asarray(measured, dtype=np.float32)
+            
+            error_segments = np.stack(
+                                        [optimized_centers, measured_centers],
+                                        axis=1
+                                    )
+            
+            color = [color_comp/255 for color_comp in color]
 
-        error_handle = self.viser_visualization.get_server().scene.add_line_segments(
-                                                                                name=f"/{traj_name}/error_lines",
-                                                                                points=error_segments,
-                                                                                colors=color,
-                                                                                line_width=line_width,
-                                                                                visible=visible
-                                                                            )
-        self.scene_vis_dict["trajectories"][traj_name]["error"] = error_handle
+            error_handle = self.viser_visualization.get_server().scene.add_line_segments(
+                                                                                    name=f"/{traj_name}/error_lines",
+                                                                                    points=error_segments,
+                                                                                    colors=color,
+                                                                                    line_width=line_width,
+                                                                                    visible=visible
+                                                                                )
+            self.scene_vis_dict["trajectories"][traj_name]["error"] = error_handle
 
         
     def visualize_traj_camera_frustums(self, traj_name, pose_type="colmap_pose_c2w",
@@ -645,39 +647,43 @@ class SceneVisualization():
         # get the camera params
         if len(frames_data) > 0:
             sample_camera = frames_data[0]["intrinsics"]
+            H = int(sample_camera["h"])
+            W = int(sample_camera["w"])
+            fy = float(sample_camera["fl_y"])
+            v_fov_degree = get_vertical_fov(H=H, fy=fy)
+    
+            poses_c2w = get_poses_from_data(frames_data)
+            image_paths = [f"{self.scene_dir}/{frame['file_name']}" for frame in frames_data]
+    
+            if pose_type == "colmap_pose_c2w":
+                pose_source = "COLMAP"
+            elif pose_type == "measured_pose_c2w":
+                pose_source = "Measured"
+            else:
+                pose_source = "Unknown"
+    
+            frame_names = [f"/{traj_name}/{pose_source}/{frame['file_name'].split('/')[-1]}" for frame in frames_data]
+    
+            frustums_handlers = self.viser_visualization.add_camera_frustums(poses_c2w=poses_c2w,
+                                                                            image_paths=image_paths,
+                                                                            names=frame_names, H=H, W=W,
+                                                                            v_fov_degree=v_fov_degree,
+                                                                            scale=scale, line_width=line_width,
+                                                                            color=traj_color, variant=variant,
+                                                                            visible=visible, image_downsample=image_downsample)
+            
+            # populate the visualization dict
+            self.scene_vis_dict["trajectories"][traj_name]["color"] = traj_color
+            self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"][pose_type] = frustums_handlers
+    
         else:
-            raise ValueError(f"No frames found in traj {traj_name}")
+            print(f"No frames found in traj {traj_name} for pose type {pose_type} "
+                  "will continue.")
+            
+            # raise ValueError(f"No frames found in traj {traj_name}")
         
         
-        H = int(sample_camera["h"])
-        W = int(sample_camera["w"])
-        fy = float(sample_camera["fl_y"])
-        v_fov_degree = get_vertical_fov(H=H, fy=fy)
-
-        poses_c2w = get_poses_from_data(frames_data)
-        image_paths = [f"{self.scene_dir}/{frame['file_name']}" for frame in frames_data]
-
-        if pose_type == "colmap_pose_c2w":
-            pose_source = "COLMAP"
-        elif pose_type == "measured_pose_c2w":
-            pose_source = "Measured"
-        else:
-            pose_source = "Unknown"
-
-        frame_names = [f"/{traj_name}/{pose_source}/{frame['file_name'].split('/')[-1]}" for frame in frames_data]
-
-        frustums_handlers = self.viser_visualization.add_camera_frustums(poses_c2w=poses_c2w,
-                                                                        image_paths=image_paths,
-                                                                        names=frame_names, H=H, W=W,
-                                                                        v_fov_degree=v_fov_degree,
-                                                                        scale=scale, line_width=line_width,
-                                                                        color=traj_color, variant=variant,
-                                                                        visible=visible, image_downsample=image_downsample)
         
-        # populate the visualization dict
-        self.scene_vis_dict["trajectories"][traj_name]["color"] = traj_color
-        self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"][pose_type] = frustums_handlers
-
     
     def add_trajs_folder(self):
         trajs_folder = self.viser_visualization.get_server().gui.add_folder("Trajectories")
@@ -709,18 +715,20 @@ class SceneVisualization():
 
             trajectories = self.scene_vis_dict["trajectories"].keys()
             for traj_name in trajectories:
-                frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["colmap_pose_c2w"]
-                for frustum in frustums:
-                    frustum.visible = gui_trajs_optim_show.value
+                if "colmap_pose_c2w" in self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]:
+                    frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["colmap_pose_c2w"]
+                    for frustum in frustums:
+                        frustum.visible = gui_trajs_optim_show.value
 
         @gui_trajs_meas_show.on_update
         def _(_event):
 
             trajectories = self.scene_vis_dict["trajectories"].keys()
             for traj_name in trajectories:
-                frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["measured_pose_c2w"]
-                for frustum in frustums:
-                    frustum.visible = gui_trajs_meas_show.value
+                if "measured_pose_c2w" in self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["measured_pose_c2w"]:
+                    frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["measured_pose_c2w"]
+                    for frustum in frustums:
+                        frustum.visible = gui_trajs_meas_show.value
         
         @gui_trajs_error_show.on_update
         def _(_event):
@@ -770,16 +778,18 @@ class SceneVisualization():
 
         @gui_frustum_optim_show.on_update
         def _(_event, traj_name=traj_name):
-            frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["colmap_pose_c2w"]
-            for frustum in frustums:
-                frustum.visible = gui_frustum_optim_show.value
+            if "colmap_pose_c2w" in self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]:
+                frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["colmap_pose_c2w"]
+                for frustum in frustums:
+                    frustum.visible = gui_frustum_optim_show.value
             
 
         @gui_frustum_meas_show.on_update
         def _(_event, traj_name=traj_name):
-            frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["measured_pose_c2w"]
-            for frustum in frustums:
-                frustum.visible = gui_frustum_meas_show.value
+            if "measured_pose_c2w" in self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]:
+                frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["measured_pose_c2w"]
+                for frustum in frustums:
+                    frustum.visible = gui_frustum_meas_show.value
         
         @gui_frustum_error_show.on_update
         def _(_event, traj_name=traj_name):
@@ -788,16 +798,18 @@ class SceneVisualization():
 
         @gui_optimized_color.on_update
         def _(_event, traj_name=traj_name):
-            frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["colmap_pose_c2w"]
-            for frustum in frustums:
-                frustum.color = gui_optimized_color.value
+            if "colmap_pose_c2w" in  self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]:
+                frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["colmap_pose_c2w"]
+                for frustum in frustums:
+                    frustum.color = gui_optimized_color.value
         
 
         @gui_measured_color.on_update
         def _(_event, traj_name=traj_name):
-            frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["measured_pose_c2w"]
-            for frustum in frustums:
-                frustum.color = gui_measured_color.value
+            if "measured_pose_c2w" in self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]:
+                frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["measured_pose_c2w"]
+                for frustum in frustums:
+                    frustum.color = gui_measured_color.value
 
 
         @gui_reset_optimized_color.on_click
@@ -808,9 +820,10 @@ class SceneVisualization():
             # Reset the color picker
             gui_optimized_color.value = color
 
-            frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["colmap_pose_c2w"]
-            for frustum in frustums:
-                frustum.color = color
+            if "colmap_pose_c2w" in self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]:
+                frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["colmap_pose_c2w"]
+                for frustum in frustums:
+                    frustum.color = color
 
         @gui_reset_measured_color.on_click
         def _(_event, traj=traj_name):
@@ -819,10 +832,11 @@ class SceneVisualization():
 
             # Reset the color picker
             gui_measured_color.value = color
-            
-            frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["measured_pose_c2w"]
-            for frustum in frustums:
-                frustum.color = color
+
+            if "measured_pose_c2w" in self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]:
+                frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["measured_pose_c2w"]
+                for frustum in frustums:
+                    frustum.color = color
 
         self.scene_vis_dict["trajectories"][traj_name]["traj_folder"] = traj_folder
 
@@ -835,18 +849,35 @@ class SceneVisualization():
         n_frames = self.scene_data["trajectories"][traj_name]["number_frames_in_traj"]
         n_missing_frames = self.scene_data["trajectories"][traj_name]["missing_colmap_frames"]
 
-        average_distance_error = self.scene_data["trajectories"][traj_name]["average_cam_center_error_distance"]
-        average_distance_error_x = self.scene_data["trajectories"][traj_name]["average_cam_center_error_x"]
-        average_distance_error_y = self.scene_data["trajectories"][traj_name]["average_cam_center_error_y"]
-        average_distance_error_z = self.scene_data["trajectories"][traj_name]["average_cam_center_error_z"]
+        average_distance_error = self.scene_data["trajectories"][traj_name]["average_cam_center_error_distance"] 
+        average_distance_error = average_distance_error if average_distance_error is not None else "NA"
 
-        average_rotation_error = self.scene_data["trajectories"][traj_name]["average_rot_error"]
-        average_rotation_error_yaw = self.scene_data["trajectories"][traj_name]["average_rot_error_yaw"]
-        average_rotation_error_pitch = self.scene_data["trajectories"][traj_name]["average_rot_error_pitch"]
-        average_rotation_error_roll = self.scene_data["trajectories"][traj_name]["average_rot_error_roll"]
+        average_distance_error_x = self.scene_data["trajectories"][traj_name]["average_cam_center_error_x"] 
+        average_distance_error_x = average_distance_error_x if average_distance_error_x is not None else "NA"
 
+        average_distance_error_y = self.scene_data["trajectories"][traj_name]["average_cam_center_error_y"] 
+        average_distance_error_y = average_distance_error_y if average_distance_error_y is not None else "NA"
+
+        average_distance_error_z = self.scene_data["trajectories"][traj_name]["average_cam_center_error_z"] 
+        average_distance_error_z = average_distance_error_z if average_distance_error_z is not None else "NA"
+
+        average_rotation_error = self.scene_data["trajectories"][traj_name]["average_rot_error"] 
+        average_rotation_error = average_rotation_error if average_rotation_error is not None else "NA"
+
+        average_rotation_error_yaw = self.scene_data["trajectories"][traj_name]["average_rot_error_yaw"] 
+        average_rotation_error_yaw = average_rotation_error_yaw if average_rotation_error_yaw is not None else "NA"
+
+        average_rotation_error_pitch = self.scene_data["trajectories"][traj_name]["average_rot_error_pitch"] 
+        average_rotation_error_pitch = average_rotation_error_pitch if average_rotation_error_pitch is not None else "NA"
+        
+        average_rotation_error_roll = self.scene_data["trajectories"][traj_name]["average_rot_error_roll"] 
+        average_rotation_error_roll = average_rotation_error_roll if average_rotation_error_roll is not None else "NA"
+        
         traj_camera = self.scene_data["trajectories"][traj_name]["camera_intrinsic_colmap"]
-          
+        if traj_camera is None:
+            traj_camera = self.scene_data["trajectories"][traj_name]["camera_intrinsic_calibration"]
+            print(f"No COLMAP optimized camera is available for trajectory {traj_name} "
+                  f"will use the calibrated camera intrinsic instead for the trajectory details")
         
         H = int(traj_camera["h"])
         W = int(traj_camera["w"])
@@ -856,8 +887,10 @@ class SceneVisualization():
         h_fov_degree = get_horizontal_fov(W=W, fx=fx) 
 
         camera_model = traj_camera["camera_type"]
-        
-        
+
+        def _fmt_m(v): return f"{v:.2f} m" if isinstance(v, float) else v
+        def _fmt_deg(v): return f"{v:.2f}°" if isinstance(v, float) else v
+
         with traj_folder:
             markdown = server.gui.add_markdown(
                 content= f"""
@@ -869,18 +902,18 @@ class SceneVisualization():
             - **Horizontal FOV**: {h_fov_degree:.2f}°
             - **Vertical FOV**: {v_fov_degree:.2f}°
             - **Camera model**: {camera_model}
-            
+
             #### Statistics
-            ##### Translation Error 
-            - **Avrg. distance**: {average_distance_error:.2f} m
-            - **Avrg. X component**: {average_distance_error_x:.2f} m
-            - **Avrg. Y component**: {average_distance_error_y:.2f} m
-            - **Avrg. Z component**: {average_distance_error_z:.2f} m
+            ##### Translation Error
+            - **Avrg. distance**: {_fmt_m(average_distance_error)}
+            - **Avrg. X component**: {_fmt_m(average_distance_error_x)}
+            - **Avrg. Y component**: {_fmt_m(average_distance_error_y)}
+            - **Avrg. Z component**: {_fmt_m(average_distance_error_z)}
             ##### Rotation Error
-            - **Avrg. full rotation**: {average_rotation_error:.2f}°
-            - **Avrg. yaw component**: {average_rotation_error_yaw:.2f}°
-            - **Avrg. pitch component**: {average_rotation_error_pitch:.2f}°
-            - **Avrg. roll component**: {average_rotation_error_roll:.2f}°
+            - **Avrg. full rotation**: {_fmt_deg(average_rotation_error)}
+            - **Avrg. yaw component**: {_fmt_deg(average_rotation_error_yaw)}
+            - **Avrg. pitch component**: {_fmt_deg(average_rotation_error_pitch)}
+            - **Avrg. roll component**: {_fmt_deg(average_rotation_error_roll)}
 
             """
             )
@@ -964,39 +997,40 @@ class SceneVisualization():
     """
             
     def create_traj_click_callbacks(self, traj_name, pose_type="colmap_pose_c2w"):
-        frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"][pose_type]
-        # Mirror the filter applied in get_traj_frames_data: only frames that carry this pose.
-        frames = [f for f in self.scene_data["trajectories"][traj_name]["frames"]
-                  if pose_type in f]
+        if pose_type in self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]:
+            frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"][pose_type]
+            # Mirror the filter applied in get_traj_frames_data: only frames that carry this pose.
+            frames = [f for f in self.scene_data["trajectories"][traj_name]["frames"]
+                    if pose_type in f]
 
-        if pose_type == "colmap_pose_c2w":
-            pose_source = "COLMAP"
-        elif pose_type == "measured_pose_c2w":
-            pose_source = "Measured"
-        else:
-            pose_source = "Unknown"
+            if pose_type == "colmap_pose_c2w":
+                pose_source = "COLMAP"
+            elif pose_type == "measured_pose_c2w":
+                pose_source = "Measured"
+            else:
+                pose_source = "Unknown"
 
-        for i, (frustum, frame) in enumerate(zip(frustums, frames)):
+            for i, (frustum, frame) in enumerate(zip(frustums, frames)):
 
-            trans_error = frame["camera_center_error_distance"] if "camera_center_error_distance" in frame else None
-            trans_error_x = frame["camera_center_error_x"] if "camera_center_error_x" in frame else None
-            trans_error_y = frame["camera_center_error_y"] if "camera_center_error_y" in frame else None
-            trans_error_z = frame["camera_center_error_z"] if "camera_center_error_z" in frame else None
+                trans_error = frame["camera_center_error_distance"] if "camera_center_error_distance" in frame else None
+                trans_error_x = frame["camera_center_error_x"] if "camera_center_error_x" in frame else None
+                trans_error_y = frame["camera_center_error_y"] if "camera_center_error_y" in frame else None
+                trans_error_z = frame["camera_center_error_z"] if "camera_center_error_z" in frame else None
 
-            rot_error = frame["rot_error"] if "rot_error" in frame else None
-            rot_error_yaw = frame["rot_error_yaw"] if "rot_error_yaw" in frame else None
-            rot_error_pitch = frame["rot_error_pitch"] if "rot_error_pitch" in frame else None
-            rot_error_roll = frame["rot_error_roll"] if "rot_error_roll" in frame else None
+                rot_error = frame["rot_error"] if "rot_error" in frame else None
+                rot_error_yaw = frame["rot_error_yaw"] if "rot_error_yaw" in frame else None
+                rot_error_pitch = frame["rot_error_pitch"] if "rot_error_pitch" in frame else None
+                rot_error_roll = frame["rot_error_roll"] if "rot_error_roll" in frame else None
 
-            image_name = frame["file_name"].split("/")[-1]
+                image_name = frame["file_name"].split("/")[-1]
 
-            self.make_click_callback(frustum, traj_name=traj_name,
-                                     pose_source=pose_source, frame_id=f"{i:05}",
-                                     image_name=image_name, translation_error=trans_error,
-                                     translation_error_x=trans_error_x, translation_error_y=trans_error_y,
-                                     translation_error_z=trans_error_z, rotation_error=rot_error,
-                                     rotation_error_yaw=rot_error_yaw, rotation_error_pitch=rot_error_pitch,
-                                     rotation_error_roll=rot_error_roll)
+                self.make_click_callback(frustum, traj_name=traj_name,
+                                        pose_source=pose_source, frame_id=f"{i:05}",
+                                        image_name=image_name, translation_error=trans_error,
+                                        translation_error_x=trans_error_x, translation_error_y=trans_error_y,
+                                        translation_error_z=trans_error_z, rotation_error=rot_error,
+                                        rotation_error_yaw=rot_error_yaw, rotation_error_pitch=rot_error_pitch,
+                                        rotation_error_roll=rot_error_roll)
     
     def visualize_scene(self, frustums_visible_default=False):
 
@@ -1020,6 +1054,7 @@ class SceneVisualization():
                                                 visible=frustums_visible_default, 
                                                 image_downsample=15)
             self.visualize_traj_camera_frustums(traj_name=traj,
+                                                intrinsic_type="camera_intrinsic_calibration",
                                                 pose_type="measured_pose_c2w", 
                                                 variant='wireframe', 
                                                 visible=frustums_visible_default, image_downsample=15, line_width=1)

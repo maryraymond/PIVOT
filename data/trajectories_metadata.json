@@ -210,7 +210,7 @@
         "capture_device": "dji_drone_mini_4_pro"
     },
     "orbit_outward_low": {
-        "mandatory_level": "optional",
+        "mandatory_level": "core",
         "motion_type": "orbit",
         "altitude_band": "low",
         "path_closed": true,
@@ -375,27 +375,12 @@
         "capture_device": "dji_drone_mini_4_pro"
     },
     "bev_traverse_area": {
-        "mandatory_level": "optional",
+        "mandatory_level": "core",
         "motion_type": "bev_traverse",
         "altitude_band": "high",
         "path_closed": false,
         "camera_direction": "nadir",
         "lens_type": "standard_fov",
-        "res": [
-            3840,
-            2160
-        ],
-        "aspect_ratio": "16:9",
-        "capture_mode": "video_frames",
-        "capture_device": "dji_drone_mini_4_pro"
-    },
-    "rocket_downward": {
-        "mandatory_level": "optional",
-        "motion_type": "vertical_descent",
-        "altitude_band": "high_to_low",
-        "path_closed": false,
-        "camera_direction": "scene_inward",
-        "lens_type": "wide_fov",
         "res": [
             3840,
             2160

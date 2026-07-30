@@ -73,7 +73,10 @@ def get_pose_k_nearest_neighbor(pose,
     
     nearest_ids = np.argsort(pose_distances)[:k]
     distance = sum([pose_distances[nearest_id] for nearest_id in nearest_ids]) / k
-    nearest_pose = ref_poses[nearest_ids[0]]
+    if len(nearest_ids) > 0:
+        nearest_pose = ref_poses[nearest_ids[0]]
+    else:
+        nearest_pose = None
 
     return nearest_pose, distance, nearest_ids
 

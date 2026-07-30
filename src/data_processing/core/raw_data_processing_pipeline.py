@@ -589,21 +589,23 @@ class RawDataProcessingPipeline():
 
                 frames.append(frame_full)
 
-            if self.add_camera_rotation_angle_error:    
-                self.scene_data["trajectories"][trajectory_name]["average_rot_error"] = traj_rot_error / (traj_total_frames_num - traj_missing_colmap)
+            valid_frames = traj_total_frames_num - traj_missing_colmap
+
+            if self.add_camera_rotation_angle_error:
+                self.scene_data["trajectories"][trajectory_name]["average_rot_error"] = traj_rot_error / valid_frames if valid_frames > 0 else None
 
             if self.add_camera_rotation_euler_error:
-                self.scene_data["trajectories"][trajectory_name]["average_rot_error_yaw"] = traj_rot_error_yaw / (traj_total_frames_num - traj_missing_colmap)
-                self.scene_data["trajectories"][trajectory_name]["average_rot_error_pitch"] = traj_rot_error_pitch / (traj_total_frames_num - traj_missing_colmap)
-                self.scene_data["trajectories"][trajectory_name]["average_rot_error_roll"] = traj_rot_error_roll / (traj_total_frames_num - traj_missing_colmap)
+                self.scene_data["trajectories"][trajectory_name]["average_rot_error_yaw"] = traj_rot_error_yaw / valid_frames if valid_frames > 0 else None
+                self.scene_data["trajectories"][trajectory_name]["average_rot_error_pitch"] = traj_rot_error_pitch / valid_frames if valid_frames > 0 else None
+                self.scene_data["trajectories"][trajectory_name]["average_rot_error_roll"] = traj_rot_error_roll / valid_frames if valid_frames > 0 else None
 
             if self.add_camera_center_distance_error:
-                self.scene_data["trajectories"][trajectory_name]["average_cam_center_error_distance"] = traj_camera_center_error_distance / (traj_total_frames_num - traj_missing_colmap)
+                self.scene_data["trajectories"][trajectory_name]["average_cam_center_error_distance"] = traj_camera_center_error_distance / valid_frames if valid_frames > 0 else None
 
             if self.add_camera_center_components_error:
-                self.scene_data["trajectories"][trajectory_name]["average_cam_center_error_x"] = traj_camera_center_error_x / (traj_total_frames_num - traj_missing_colmap)
-                self.scene_data["trajectories"][trajectory_name]["average_cam_center_error_y"] = traj_camera_center_error_y / (traj_total_frames_num - traj_missing_colmap)
-                self.scene_data["trajectories"][trajectory_name]["average_cam_center_error_z"] = traj_camera_center_error_z / (traj_total_frames_num - traj_missing_colmap)
+                self.scene_data["trajectories"][trajectory_name]["average_cam_center_error_x"] = traj_camera_center_error_x / valid_frames if valid_frames > 0 else None
+                self.scene_data["trajectories"][trajectory_name]["average_cam_center_error_y"] = traj_camera_center_error_y / valid_frames if valid_frames > 0 else None
+                self.scene_data["trajectories"][trajectory_name]["average_cam_center_error_z"] = traj_camera_center_error_z / valid_frames if valid_frames > 0 else None
 
             self.scene_data["trajectories"][trajectory_name]["missing_colmap_frames"] = traj_missing_colmap
             self.scene_data["trajectories"][trajectory_name]["number_frames_in_traj"] = traj_total_frames_num

@@ -92,12 +92,13 @@ This gives a rich, non-redundant sampling of the viewpoint space around a scene 
 | `panorama_360_station_a` | Panorama 360 | Low | Sweep 360° | Standard | 4032×3024 | 4:3 | Photos | ✓ |
 | `panorama_360_station_b` | Panorama 360 | Low | Sweep 360° | Standard | 4032×3024 | 4:3 | Photos | ✓ |
 | `panorama_360_station_c` | Panorama 360 | Low | Sweep 360° | Standard | 4032×3024 | 4:3 | Photos | ✓ |
+| `orbit_outward_low` | Circular orbit | Low | Outward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
+| `bev_traverse_area` | BEV traverse | High | Nadir | Standard | 3840×2160 | 16:9 | Video | ✗ |
 
 #### Optional Trajectories
 
 | Trajectory | Motion | Altitude | Camera | Lens | Resolution | Aspect | Mode | Path closed |
 |---|---|---|---|---|---|---|---|---|
-| `orbit_outward_low` | Circular orbit | Low | Outward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
 | `orbit_outward_mid` | Circular orbit | Mid | Outward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
 | `orbit_outward_high` | Circular orbit | High | Outward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
 | `traversal_forward_mid` | Traversal | Mid | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
@@ -108,8 +109,6 @@ This gives a rich, non-redundant sampling of the viewpoint space around a scene 
 | `traversal_backward_high` | Traversal | High | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
 | `traversal_left_high` | Traversal | High | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
 | `traversal_right_high` | Traversal | High | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `bev_traverse_area` | BEV traverse | High | Nadir | Standard | 3840×2160 | 16:9 | Video | ✗ |
-| `rocket_downward` | Vertical descent | High → Low | Inward-facing | Wide | 3840×2160 | 16:9 | Video | ✗ |
 | `scattered_mid` | Scattered | Mid | Multi-angle | Standard | 3840×2160 | 16:9 | Photos | ✗ |
 | `scattered_high` | Scattered | High | Multi-angle | Standard | 3840×2160 | 16:9 | Photos | ✗ |
 
