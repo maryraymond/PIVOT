@@ -36,6 +36,22 @@ def get_traj_camera_centers_pairs(scene_traj_data, traj_name, step=5):
     
     return camera_centers_measured, camera_centers_colmap
 
+def compute_effective_frustum_step(num_frames: int, step: int, max_frame_number: int) -> int:
+    """Pick the frame stride to use when rendering camera frustums.
+
+    Never decreases below the configured `step`. Only increases it, and only
+    when `step` would still produce more than `max_frame_number` frustums.
+    """
+    step = max(1, step)
+    if num_frames <= 0:
+        return step
+
+    frames_at_step = math.ceil(num_frames / step)
+    if frames_at_step <= max_frame_number:
+        return step
+
+    return math.ceil(num_frames / max_frame_number)
+
 def drone_DS_2_viser_pose(c2w):
     openGL_2_openCV_T = np.array([[1, 0, 0, 0],
                                   [0, -1, 0, 0],
@@ -412,7 +428,21 @@ class ViserVisualization():
             frustums.append(frustum)
 
         return frustums
-            
+
+# (scene_data.json key, display label, format spec) for the scene-level stats block.
+SCENE_STATS_FIELDS = [
+    ("total_frames_number", "Total frames", "{:,}"),
+    ("colmap_reg_frames_number", "COLMAP registered frames", "{:,}"),
+    ("pointcloud_number", "Point cloud points", "{:,}"),
+    ("observations", "COLMAP observations", "{:,}"),
+    ("scene_diameter", "Scene diameter", "{:.2f} m"),
+    ("aabb_diagonal", "AABB diagonal", "{:.2f} m"),
+    ("mean_track_length", "Mean track length", "{:.2f}"),
+    ("colmap_per_image_observation", "COLMAP obs. per image", "{:.1f}"),
+    ("mean_observations_per_image", "Mean obs. per image", "{:.1f}"),
+    ("mean_reprojection_error_px", "Mean reprojection error", "{:.3f} px"),
+]
+
 class SceneVisualization():
     def __init__(self, dataset_root, scene_name, port, trajectories=None):
         self.dataset_root = dataset_root
@@ -440,6 +470,9 @@ class SceneVisualization():
              self.scene_vis_dict["trajectories"][traj_name] = {"color":None,
                                                                "frustum_handlers":{}}
              
+        # Populated by visualize_scene() with the scene-wide frustum step decision.
+        self.frustum_subsampling_report = None
+
         #Initialization for Frustum selection
         self.selected_frustum = None
         self.selected_frustum_original_color = None
@@ -546,16 +579,33 @@ class SceneVisualization():
 
         server = self.viser_visualization.get_server()
 
-        with server.gui.add_folder("Scene trajectories Summary"):
+        scene_summary_folder = server.gui.add_folder("Scene trajectories Summary")
+        with scene_summary_folder:
             bubble_plot = server.gui.add_plotly(
                 fig,
                 aspect=1,
                 config={"displayModeBar": True,
                         "scrollZoom": True,},
-                
+
             )
 
         self.scene_vis_dict["scene_summary_bubble_plot"] = bubble_plot
+        self.scene_vis_dict["scene_summary_folder"] = scene_summary_folder
+
+    def add_scene_stats_summary(self):
+        rows = []
+        for field, label, fmt in SCENE_STATS_FIELDS:
+            value = self.scene_data.get(field)
+            value_str = fmt.format(value) if value is not None else "N/A"
+            rows.append(f"| {label} | {value_str} |")
+
+        content = "#### Scene statistics\n| Metric | Value |\n|---|---|\n" + "\n".join(rows)
+
+        server = self.viser_visualization.get_server()
+        with self.scene_vis_dict["scene_summary_folder"]:
+            stats_markdown = server.gui.add_markdown(content)
+
+        self.scene_vis_dict["scene_stats_markdown"] = stats_markdown
 
     def add_scene_heatmap_plot(self):
 
@@ -606,9 +656,9 @@ class SceneVisualization():
         self.scene_vis_dict["scene_summary_double_bar_plot"] = double_bar_plot
 
 
-    def visualize_traj_camera_centers(self, traj_name, line_width=1.0, visible=True, color=[255, 0, 0]):
+    def visualize_traj_camera_centers(self, traj_name, line_width=1.0, visible=True, color=[255, 0, 0], step=1):
 
-        measured, optimized = get_traj_camera_centers_pairs(self.scene_data["trajectories"], traj_name, step=1)
+        measured, optimized = get_traj_camera_centers_pairs(self.scene_data["trajectories"], traj_name, step=step)
 
         if len(measured) > 0 and len(optimized) > 0:
             optimized_centers = np.asarray(optimized, dtype=np.float32)
@@ -633,7 +683,8 @@ class SceneVisualization():
         
     def visualize_traj_camera_frustums(self, traj_name, pose_type="colmap_pose_c2w",
                                        variant='filled', intrinsic_type="camera_intrinsic_colmap",
-                                       scale=0.15, line_width=2.0, visible=True, image_downsample=5):
+                                       scale=0.15, line_width=2.0, visible=True, image_downsample=5,
+                                       step=1):
         # read the trajectory color
         traj_color = self.scene_data["trajectories"][traj_name]["color_value"]
         traj_color = [color_comp /255 for color_comp in traj_color]
@@ -643,9 +694,23 @@ class SceneVisualization():
                                            trajectory_name=traj_name,
                                            cam_intrinsics_type=intrinsic_type,
                                            c2w_pose_type=pose_type)
-        
+
+        num_frames_available = len(frames_data)
+        # `step` is the scene-wide value visualize_scene() already picked so that the
+        # total frustum count across all shown trajectories stays under the configured budget.
+        frames_data = frames_data[::max(1, step)]
+        frames_full_data = [f for f in self.scene_data["trajectories"][traj_name]["frames"]
+                            if pose_type in f][::max(1, step)]
+
         # get the camera params
         if len(frames_data) > 0:
+            self.scene_vis_dict["trajectories"][traj_name].setdefault("frustum_frame_counts", {})[pose_type] = {
+                "num_frames_available": num_frames_available,
+                "num_frames_shown": len(frames_data),
+            }
+            self.scene_vis_dict["trajectories"][traj_name].setdefault("frustum_frames", {})[pose_type] = frames_full_data
+
+
             sample_camera = frames_data[0]["intrinsics"]
             H = int(sample_camera["h"])
             W = int(sample_camera["w"])
@@ -694,7 +759,9 @@ class SceneVisualization():
         server = self.viser_visualization.get_server()
 
         with self.scene_vis_dict["trajs_folder_handler"]:
-                
+
+                gui_hide_all_button = server.gui.add_button("Hide all")
+
                 gui_trajs_optim_show = server.gui.add_checkbox(
                     f"All optimized",
                     initial_value=visible
@@ -708,7 +775,35 @@ class SceneVisualization():
                     f"All error",
                     initial_value=visible
                 )
-                
+
+
+        @gui_hide_all_button.on_click
+        def _(_event):
+
+            trajectories = self.scene_vis_dict["trajectories"].keys()
+            for traj_name in trajectories:
+                traj_info = self.scene_vis_dict["trajectories"][traj_name]
+
+                for pose_type in ("colmap_pose_c2w", "measured_pose_c2w"):
+                    if pose_type in traj_info["frustum_handlers"]:
+                        for frustum in traj_info["frustum_handlers"][pose_type]:
+                            frustum.visible = False
+
+                if "error" in traj_info:
+                    traj_info["error"].visible = False
+
+                # Clear the per-trajectory checkboxes so their state matches reality.
+                if "gui_optim_show_checkbox" in traj_info:
+                    traj_info["gui_optim_show_checkbox"].value = False
+                if "gui_meas_show_checkbox" in traj_info:
+                    traj_info["gui_meas_show_checkbox"].value = False
+                if "gui_error_show_checkbox" in traj_info:
+                    traj_info["gui_error_show_checkbox"].value = False
+
+            # Clear the "All ..." checkboxes too.
+            gui_trajs_optim_show.value = False
+            gui_trajs_meas_show.value = False
+            gui_trajs_error_show.value = False
 
         @gui_trajs_optim_show.on_update
         def _(_event):
@@ -725,7 +820,7 @@ class SceneVisualization():
 
             trajectories = self.scene_vis_dict["trajectories"].keys()
             for traj_name in trajectories:
-                if "measured_pose_c2w" in self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["measured_pose_c2w"]:
+                if "measured_pose_c2w" in self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]:
                     frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]["measured_pose_c2w"]
                     for frustum in frustums:
                         frustum.visible = gui_trajs_meas_show.value
@@ -760,6 +855,10 @@ class SceneVisualization():
                     f"Error",
                     initial_value=visible
                 )
+
+                self.scene_vis_dict["trajectories"][traj_name]["gui_optim_show_checkbox"] = gui_frustum_optim_show
+                self.scene_vis_dict["trajectories"][traj_name]["gui_meas_show_checkbox"] = gui_frustum_meas_show
+                self.scene_vis_dict["trajectories"][traj_name]["gui_error_show_checkbox"] = gui_frustum_error_show
 
                 color = self.scene_vis_dict["trajectories"][traj_name]["color"]
                 color = [color_comp * 255 for color_comp in color]
@@ -999,9 +1098,9 @@ class SceneVisualization():
     def create_traj_click_callbacks(self, traj_name, pose_type="colmap_pose_c2w"):
         if pose_type in self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"]:
             frustums = self.scene_vis_dict["trajectories"][traj_name]["frustum_handlers"][pose_type]
-            # Mirror the filter applied in get_traj_frames_data: only frames that carry this pose.
-            frames = [f for f in self.scene_data["trajectories"][traj_name]["frames"]
-                    if pose_type in f]
+            # Use the same (possibly subsampled) frame list that the frustums were built
+            # from, so click callbacks stay aligned with what's actually on screen.
+            frames = self.scene_vis_dict["trajectories"][traj_name]["frustum_frames"][pose_type]
 
             if pose_type == "colmap_pose_c2w":
                 pose_source = "COLMAP"
@@ -1032,10 +1131,33 @@ class SceneVisualization():
                                         rotation_error_yaw=rot_error_yaw, rotation_error_pitch=rot_error_pitch,
                                         rotation_error_roll=rot_error_roll)
     
-    def visualize_scene(self, frustums_visible_default=False):
+    def visualize_scene(self, frustums_visible_default=False, max_frame_number=3000, step=1):
+
+        # Total frame count across every trajectory being shown, computed up front from
+        # scene metadata (no per-trajectory frame loading needed yet). Each trajectory is
+        # rendered as two frustum layers (optimized/colmap + measured), so the actual
+        # frustum node count is ~2x this total; max_frame_number is a budget on that
+        # combined total. A single common step is derived from it and reused everywhere,
+        # so the scene-wide frustum count (not any one trajectory's or layer's) stays
+        # under max_frame_number.
+        total_frames_available = sum(
+            self.scene_data["trajectories"][traj_name]["number_frames_in_traj"]
+            for traj_name in self.trajectories
+        )
+        pose_layer_count = 2  # optimized (colmap) + measured
+        total_frustums_estimate = total_frames_available * pose_layer_count
+        effective_step = compute_effective_frustum_step(total_frustums_estimate, step, max_frame_number)
+        self.frustum_subsampling_report = {
+            "configured_step": step,
+            "used_step": effective_step,
+            "max_frame_number": max_frame_number,
+            "total_frames_available": total_frames_available,
+            "total_frustums_estimate": total_frustums_estimate,
+        }
 
         self.apply_theme()
         self.add_scene_summary_bubble_plot()
+        self.add_scene_stats_summary()
         self.add_scene_heatmap_plot()
         # scene_vis.add_scene_summary_double_bar_plot()
         self.visualize_world_coordinate()
@@ -1050,20 +1172,39 @@ class SceneVisualization():
         self.add_trajs_gui(visible=False)
         # trajectories = sorted(scene_vis.scene_data["trajectories"].keys())
         for traj in self.trajectories:
-            self.visualize_traj_camera_frustums(traj_name=traj, 
-                                                visible=frustums_visible_default, 
-                                                image_downsample=15)
+            self.visualize_traj_camera_frustums(traj_name=traj,
+                                                visible=frustums_visible_default,
+                                                image_downsample=15, step=effective_step)
             self.visualize_traj_camera_frustums(traj_name=traj,
                                                 intrinsic_type="camera_intrinsic_calibration",
-                                                pose_type="measured_pose_c2w", 
-                                                variant='wireframe', 
-                                                visible=frustums_visible_default, image_downsample=15, line_width=1)
-            self.visualize_traj_camera_centers(traj_name=traj, 
-                                               line_width=0.5, 
-                                               visible=frustums_visible_default)
+                                                pose_type="measured_pose_c2w",
+                                                variant='wireframe',
+                                                visible=frustums_visible_default, image_downsample=15, line_width=1,
+                                                step=effective_step)
+            self.visualize_traj_camera_centers(traj_name=traj,
+                                               line_width=0.5,
+                                               visible=frustums_visible_default,
+                                               step=effective_step)
             
             self.add_frustums_gui(traj, visible=False)
             self.add_traj_details(traj)
             self.create_traj_click_callbacks(traj)
             self.create_traj_click_callbacks(traj, pose_type="measured_pose_c2w")
+
+    def get_frustum_subsampling_report(self):
+        """Scene-wide frustum step decision, plus per-trajectory/pose-type frame counts.
+
+        Call after visualize_scene(). Intended for the calling application to report
+        to the user what step was actually used and why.
+        """
+        trajectories_report = {
+            traj_name: traj_info["frustum_frame_counts"]
+            for traj_name, traj_info in self.scene_vis_dict["trajectories"].items()
+            if "frustum_frame_counts" in traj_info
+        }
+
+        return {
+            "scene": self.frustum_subsampling_report,
+            "trajectories": trajectories_report,
+        }
 
