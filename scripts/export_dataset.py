@@ -88,6 +88,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--use-sparse-pc",
+        action="store_true",
+        help="Copy sparse_model.ply from the scene dir and add it to transforms.json.",
+    )
+
+    parser.add_argument(
         "--debug-prints",
         action="store_true",
         help="Enable verbose debug printing.",
@@ -105,13 +111,15 @@ def main() -> None:
     print("\nParsed arguments:")
     print(f"scene_dir: {args.scene_dir}")
     print(f"dst_dir: {args.dst_dir}")
+    print(f"use_sparse_pc: {args.use_sparse_pc}")
     print(f"debug_prints: {args.debug_prints}")
 
     print("\nParsed scene_config:")
     print(json.dumps(scene_config, indent=2))
 
     create_ns_dataset_from_scene(scene_dir=args.scene_dir, scene_config=scene_config,
-                                 dst_dir=args.dst_dir, debug_prints=args.debug_prints)
+                                 dst_dir=args.dst_dir, use_sparse_pc=args.use_sparse_pc,
+                                 debug_prints=args.debug_prints)
 
 
 if __name__ == "__main__":

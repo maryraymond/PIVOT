@@ -121,6 +121,15 @@ def random_train_eval_ids(n_frames: int, train_percent: float = 0.9, seed: int =
 
     return train_ids, eval_ids
 
+def _expand_all_key(split_config, scene_trajectories):
+    if "all" not in split_config:
+        return split_config
+    all_conf = split_config.pop("all")
+    for traj in scene_trajectories:
+        if traj not in split_config:
+            split_config[traj] = dict(all_conf)
+    return split_config
+
 def update_config_with_indices(scene_config, scene_tranjectories):
     # get a set of traj in train and eval that have a percenatge set
     train_config = scene_config["train"]
@@ -242,8 +251,9 @@ def process_split(scene_dir:str, dst_dir:str,
     return frames
 
 
-def create_ns_dataset_from_scene(scene_dir:str, scene_config:Dict, 
-                                 dst_dir:str, debug_prints:bool=False):
+def create_ns_dataset_from_scene(scene_dir:str, scene_config:Dict,
+                                 dst_dir:str, use_sparse_pc:bool=False,
+                                 debug_prints:bool=False):
     transforms_data = {}
     transforms_file = dst_dir + "/transforms.json"
     frames = []
@@ -268,8 +278,12 @@ def create_ns_dataset_from_scene(scene_dir:str, scene_config:Dict,
             scene_data = json.load(f)
             scene_tranjectories = scene_data["trajectories"]
 
-        # update the scene config to set ids for the percentages
-        updated_scene_config = update_config_with_indices(dict(scene_config),  scene_tranjectories)
+        # expand "all" key and update the scene config to set ids for the percentages
+        scene_config_expanded = dict(scene_config)
+        scene_config_expanded["train"] = _expand_all_key(dict(scene_config_expanded["train"]), scene_tranjectories)
+        if "eval" in scene_config_expanded and scene_config_expanded["eval"] is not None:
+            scene_config_expanded["eval"] = _expand_all_key(dict(scene_config_expanded["eval"]), scene_tranjectories)
+        updated_scene_config = update_config_with_indices(scene_config_expanded, scene_tranjectories)
         # now for trajectory we will read and populate the frames
         frames += process_split(scene_dir=scene_dir, dst_dir=dst_dir,
                                 scene_tranjectories=scene_tranjectories, split_config=updated_scene_config["train"], 
@@ -283,6 +297,10 @@ def create_ns_dataset_from_scene(scene_dir:str, scene_config:Dict,
                                     split_prefix=eval_prefix, images_dir=images_dir,
                                     debug_prints=debug_prints)
         
+        if use_sparse_pc:
+            shutil.copyfile(scene_dir + "/sparse_model.ply", dst_dir + "/sparse_pc.ply")
+            transforms_data["ply_file_path"] = "sparse_pc.ply"
+
         transforms_data["frames"] = frames
 
         with open(transforms_file, 'w') as f:
