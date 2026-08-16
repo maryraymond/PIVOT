@@ -87,7 +87,7 @@ RUN git clone --branch 2.1.0 https://ceres-solver.googlesource.com/ceres-solver.
     git checkout $(git describe --tags) && \
     mkdir build && \
     cd build && \
-    cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF && \
+    cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF -DUSE_CUDA=ON && \
     make -j `nproc` && \
     make install && \
     cd ../.. && \
@@ -158,52 +158,8 @@ RUN CUDA_VER=${CUDA_VERSION%.*} && CUDA_VER=${CUDA_VER//./} && python3.10 -m pip
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install --no-cache-dir --no-build-isolation git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
 
-# # Install pycolmap, required by hloc.
-# RUN git clone --branch v0.4.0 --recursive https://github.com/colmap/pycolmap.git && \
-#     cd pycolmap && \
-#     python3.10 -m pip install --no-cache-dir . && \
-#     cd ..
-
-# # Install hloc 1.4 as alternative feature detector and matcher option for nerfstudio.
-# RUN git clone --branch master --recursive https://github.com/cvg/Hierarchical-Localization.git && \
-#     cd Hierarchical-Localization && \
-#     git checkout v1.4 && \
-#     python3.10 -m pip install --no-cache-dir -e . && \
-#     cd ..
-
-# # Install pyceres from source
-# RUN git clone --branch v1.0 --recursive https://github.com/cvg/pyceres.git && \
-#     cd pyceres && \
-#     python3.10 -m pip install --no-cache-dir -e . && \
-#     cd ..
-
-# # Install pixel perfect sfm.
-# RUN git clone --recursive https://github.com/cvg/pixel-perfect-sfm.git && \
-#     cd pixel-perfect-sfm && \
-#     git reset --hard 40f7c1339328b2a0c7cf71f76623fb848e0c0357 && \
-#     git clean -df && \
-#     python3.10 -m pip install --no-cache-dir -e . && \
-#     cd ..
-
-# RUN python3.10 -m pip install --no-cache-dir omegaconf
-# Copy nerfstudio folder and give ownership to user.
-# ADD . /home/user/nerfstudio
-# USER root
-# RUN chown -R user /home/user/nerfstudio
-# USER ${USER_ID}
-
-# # Install nerfstudio dependencies.
-# RUN cd nerfstudio && \
-#     python3.10 -m pip install --no-cache-dir -e . && \
-#     cd ..
-
-
-    
 # Change working directory
 WORKDIR /workspace
-
-# # Install nerfstudio cli auto completion
-# RUN ns-install-cli --mode install
 
 # Bash as default entrypoint.
 CMD /bin/bash -l
