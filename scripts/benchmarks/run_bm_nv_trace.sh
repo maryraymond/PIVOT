@@ -273,7 +273,7 @@ python export_dataset.py \
         "camera_intrinsics_optimized": true,
         "fill_missing_poses_with_non_optimized": false
       },
-      "orbit_outward": {
+      "orbit_outward_low": {
         "c2w_rot_optimized": true,
         "c2w_trans_optimized": true,
         "camera_intrinsics_optimized": true,
@@ -297,7 +297,7 @@ python export_dataset.py \
 
 echo splatfacto
 ns-train splatfacto --output-dir /workspace/outputs --experiment-name ${EXP_FOLDER} --save-only-latest-checkpoint True \
---vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.random-scale 2 --pipeline.model.camera-optimizer.mode off \
+--vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.random-scale 10 --pipeline.model.camera-optimizer.mode off \
 --timestamp ${TIME_STAMP} --max-num-iterations ${NUM_ITERATIONS} --viewer.quit-on-train-completion True --pipeline.datamanager.camera-res-scale-factor 0.5 \
 nerfstudio-data --eval-mode filename
 

@@ -18,6 +18,7 @@ python3 summarize_results/benchmark_table_nv.py \
 python3 summarize_results/benchmark_qualitative_nv.py \
     --root /workspace/outputs/${EXP_NAME} \
     --out-dir /workspace/outputs/${EXP_NAME}/output_plots 
+EXP_NAME="exp_ds_bm_poses"
 
 sh run_bm_poses_trace.sh ${ROOT_DIR} ${SCENE_NAME} ${EXP_NAME} 30000
 
