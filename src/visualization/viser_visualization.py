@@ -437,6 +437,7 @@ SCENE_STATS_FIELDS = [
     ("observations", "COLMAP observations", "{:,}"),
     ("scene_diameter", "Scene diameter", "{:.2f} m"),
     ("aabb_diagonal", "AABB diagonal", "{:.2f} m"),
+    ("max_rotation_angle", "Max rotation angle", "{:.2f}°"),
     ("mean_track_length", "Mean track length", "{:.2f}"),
     ("colmap_per_image_observation", "COLMAP obs. per image", "{:.1f}"),
     ("mean_observations_per_image", "Mean obs. per image", "{:.1f}"),

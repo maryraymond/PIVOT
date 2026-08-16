@@ -91,9 +91,11 @@ def convert_model_ply(input_path, output_path=None):
 
     return result
 
-def run_colmap(dataset_images_dir, colmap_dir, 
+def run_colmap(dataset_images_dir, colmap_dir,
                camera_mode:CameraMode=CameraMode.SINGLE, max_num_models=3,
-               camera_model="OPENCV", input_path='', camera_model_map=None):
+               camera_model="OPENCV", input_path='', camera_model_map=None,
+               mapper_num_threads=1, mapper_random_seed=0, default_random_seed=0,
+               mapper_max_reg_trials=5, mapper_ba_use_gpu=0):
     colmap_db = colmap_dir / "database.db"
     colmap_out_dir = colmap_dir / "sparse"
 
@@ -117,7 +119,18 @@ def run_colmap(dataset_images_dir, colmap_dir,
 
     pycolmap.match_exhaustive(database_path=colmap_db)
 
+    # pycolmap has a single process-wide PRNG seed (no separate Mapper.random_seed hook),
+    pycolmap.set_random_seed(mapper_random_seed)
+
     pipeline_options = pycolmap.IncrementalPipelineOptions(max_num_models=max_num_models)
+    pipeline_options.mapper.num_threads = mapper_num_threads
+    pipeline_options.mapper.max_reg_trials = mapper_max_reg_trials
+    if hasattr(pipeline_options, "ba_use_gpu"):
+        pipeline_options.ba_use_gpu = bool(mapper_ba_use_gpu)
+    elif hasattr(pipeline_options.mapper, "ba_use_gpu"):
+        pipeline_options.mapper.ba_use_gpu = bool(mapper_ba_use_gpu)
+    else: 
+        print("Warning: this pycolmap build does not expose GPU bundle-adjustment control; skip setting the use GPU")
 
     maps = pycolmap.incremental_mapping(
         database_path=colmap_db,
@@ -202,37 +215,57 @@ def run_colmap_with_initialization(dataset_images_dir,
         convert_model_txt(str(sparse_model))
         convert_model_ply(str(sparse_model))
 
-def pose_prior_mapping(database_path, image_path, 
+def pose_prior_mapping(database_path, image_path,
                        output_path, max_num_models=3,
-                       input_path=''):
+                       input_path='',
+                       mapper_num_threads=1, mapper_random_seed=0, default_random_seed=0,
+                       mapper_max_reg_trials=5, mapper_ba_use_gpu=0):
     os.makedirs(output_path, exist_ok=True)
 
-    cmd = ["colmap", "pose_prior_mapper", 
-              "--database_path", str(database_path), 
+    cmd = ["colmap", "pose_prior_mapper",
+              "--database_path", str(database_path),
               "--image_path", str(image_path),
-              "--output_path", str(output_path), 
-              "--Mapper.max_num_models", str(max_num_models)]
+              "--output_path", str(output_path),
+              "--Mapper.max_num_models", str(max_num_models),
+              "--Mapper.num_threads", str(mapper_num_threads),
+              "--Mapper.random_seed", str(mapper_random_seed),
+              "--default_random_seed", str(default_random_seed),
+              "--Mapper.max_reg_trials", str(mapper_max_reg_trials),
+              "--Mapper.ba_use_gpu", str(int(mapper_ba_use_gpu))]
     if input_path != '':
         cmd.append("--input_path")
         cmd.append(str(input_path))
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # merge stderr into stdout so interleaved output prints in the order COLMAP emits it
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                               text=True, bufsize=1)
 
-    return result
+    output_lines = []
+    for line in process.stdout:
+        print(line, end="")
+        output_lines.append(line)
+    process.wait()
+
+    return subprocess.CompletedProcess(cmd, process.returncode, stdout="".join(output_lines), stderr="")
 
 def run_colmap_with_soft_priors(dataset_images_dir,
-                                create_image_metadata:Callable[[str, bool], CameraImageMetaData], 
-                                colmap_dir, 
+                                create_image_metadata:Callable[[str, bool], CameraImageMetaData],
+                                colmap_dir,
                                 use_absloute_altitude=True,
                                 max_num_models=3,
-                                camera_mode:CameraMode=CameraMode.SINGLE, 
+                                camera_mode:CameraMode=CameraMode.SINGLE,
                                 pos_var = None,
-                                update_positions=True, 
-                                cartesian_system=True, 
+                                update_positions=True,
+                                cartesian_system=True,
                                 camera_model="OPENCV",
-                                input_path='', 
-                                sparse_dir_name="sparse", 
-                                camera_model_map=None):
+                                input_path='',
+                                sparse_dir_name="sparse",
+                                camera_model_map=None,
+                                mapper_num_threads=1,
+                                mapper_random_seed=0,
+                                default_random_seed=0,
+                                mapper_max_reg_trials=5,
+                                mapper_ba_use_gpu=0):
     
     colmap_db = colmap_dir / "database.db"
     colmap_out_dir = colmap_dir / sparse_dir_name
@@ -268,12 +301,15 @@ def run_colmap_with_soft_priors(dataset_images_dir,
     update_db_pose_prior(colmap_db, images_data, pos_var,
                         update_position=update_positions, cartesian_system=cartesian_system)
 
-    # run the pose prior mapping                    
-    res = pose_prior_mapping(colmap_db, dataset_images_dir, 
-                             colmap_out_dir, max_num_models=max_num_models,
-                             input_path=input_path)
-    print(res.stderr)
-    print(res.stdout)
+    # run the pose prior mapping (output is streamed live inside pose_prior_mapping)
+    pose_prior_mapping(colmap_db, dataset_images_dir,
+                       colmap_out_dir, max_num_models=max_num_models,
+                       input_path=input_path,
+                       mapper_num_threads=mapper_num_threads,
+                       mapper_random_seed=mapper_random_seed,
+                       default_random_seed=default_random_seed,
+                       mapper_max_reg_trials=mapper_max_reg_trials,
+                       mapper_ba_use_gpu=mapper_ba_use_gpu)
 
     sparse_models = [folder for folder in Path(colmap_out_dir).iterdir() if folder.is_dir()] 
     for sparse_model in sparse_models:

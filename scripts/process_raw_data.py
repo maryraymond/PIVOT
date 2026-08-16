@@ -78,6 +78,19 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Position prior covariance in X Y Z (default: 2 2 2).")
     parser.add_argument("--max-num-models", type=int, default=4,
                         help="Maximum number of COLMAP sub-models to accept (default: 4).")
+    parser.add_argument("--colmap-mapper-num-threads", type=int, default=1,
+                        help="COLMAP Mapper.num_threads: number of threads used by the incremental "
+                             "mapper (default: 1).")
+    parser.add_argument("--colmap-mapper-random-seed", type=int, default=0,
+                        help="COLMAP Mapper.random_seed: random seed used by the incremental mapper "
+                             "(default: 0).")
+    parser.add_argument("--colmap-default-random-seed", type=int, default=0,
+                        help="COLMAP random_seed: process-wide default random seed (default: 0).")
+    parser.add_argument("--colmap-mapper-max-reg-trials", type=int, default=5,
+                        help="COLMAP Mapper.max_reg_trials: maximum number of times to try to "
+                             "re-register an image (default: 5).")
+    parser.add_argument("--colmap-mapper-ba-use-gpu", action=argparse.BooleanOptionalAction, default=False,
+                        help="COLMAP Mapper.ba_use_gpu: run bundle adjustment on the GPU (default: False).")
 
     # --- frame selection parameters ---
     parser.add_argument("--min-distance", type=float, default=0.3,
@@ -104,11 +117,22 @@ def build_parser() -> argparse.ArgumentParser:
                         choices=["aabb_diagonal", "scene_diameter"],
                         help="Scene scale used to normalise the translation component of the Chamfer distance (default: aabb_diagonal).")
     parser.add_argument("--chamfer-rotation-scale", type=float, default=180.0,
-                        help="Maximum rotation angle (degrees) used to normalise the rotation component of the Chamfer distance (default: 180).")
+                        help="Fixed rotation angle (degrees) used to normalise the rotation component of the "
+                             "Chamfer distance when --chamfer-rotation-scale-mode=fixed (default: 180).")
+    parser.add_argument("--chamfer-rotation-scale-mode", default="fixed",
+                        choices=["fixed", "max_rotation"],
+                        help="How to determine the rotation scale used to normalise the rotation component "
+                             "of the Chamfer distance: 'fixed' uses --chamfer-rotation-scale (default), "
+                             "'max_rotation' computes the maximum pairwise rotation angle (degrees) across "
+                             "all COLMAP poses in the scene and uses that instead.")
 
     # --- camera model flags ---
     parser.add_argument("--use-fisheye-for-wfov", action=argparse.BooleanOptionalAction, default=True,
                         help="Use fisheye camera model for wide-FOV lenses (default: True).")
+    parser.add_argument("--absolute-altitude", action=argparse.BooleanOptionalAction, default=True,
+                        help="Use absolute altitude (vs. relative altitude) when reading GPS "
+                             "metadata from captures (default: True). Pass "
+                             "--no-absolute-altitude to use relative altitude instead.")
 
     return parser
 
@@ -133,10 +157,17 @@ def main():
         min_rot_degree=args.min_rotation,
         pos_covariance=args.pos_covariance,
         max_num_models=args.max_num_models,
+        colmap_mapper_num_threads=args.colmap_mapper_num_threads,
+        colmap_mapper_random_seed=args.colmap_mapper_random_seed,
+        colmap_default_random_seed=args.colmap_default_random_seed,
+        colmap_mapper_max_reg_trials=args.colmap_mapper_max_reg_trials,
+        colmap_mapper_ba_use_gpu=args.colmap_mapper_ba_use_gpu,
         wfov_as_fisheye=args.use_fisheye_for_wfov,
+        absolute_altitude=args.absolute_altitude,
         chamfer_k_neighbor=args.chamfer_k_neighbor,
         chamfer_translation_scale=args.chamfer_translation_scale,
         chamfer_rotation_scale=args.chamfer_rotation_scale,
+        chamfer_rotation_scale_mode=args.chamfer_rotation_scale_mode,
     )
 
     raw_data_pipeline.configure_scene(

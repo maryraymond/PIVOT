@@ -61,7 +61,8 @@ def read_images_data_from_folder(data_path:str,
                             "pose_c2w":pose_c2w.tolist()})
     
     return images_data
-    
+
+# obsolete need to be removed    
 def read_images_data_from_sub_folders(data_path:str, 
                                       create_image_metadata_map:Dict[str, Callable[[str, bool], CameraImageMetaData]],
                                       sorting_func=frame_num, 

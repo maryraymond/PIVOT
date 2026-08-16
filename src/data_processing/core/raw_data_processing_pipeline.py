@@ -14,7 +14,7 @@ from typing import Dict, Callable
 
 from data_processing.core.video_processing import process_video_to_images
 
-from data_processing.core.image_processing import read_images_data_from_sub_folders, frame_num
+from data_processing.core.image_processing import read_images_data_from_folder, frame_num
 
 from utils.processing_utils import get_cameras_data, get_trajectories_diff
 
@@ -22,7 +22,8 @@ from utils.metrics import (get_pose_tr_distance,
                            get_pose_r_distance,
                            get_pose_t_distance,
                            compute_scene_diameter,
-                           compute_aabb_diagonal)
+                           compute_aabb_diagonal,
+                           compute_max_rotation_angle)
 
 from data_processing.core.camera_metadata_abc import GpsTagsMap
 
@@ -56,56 +57,90 @@ def _make_metadata_dispatcher(metadata_map):
     return dispatch
 
 
+# Fixed, permanent color assignment for every trajectory catalogued in
+# data/trajectories_metadata.json (core + optional), so a given trajectory name
+# gets the same color in every scene, regardless of on-disk folder order.
+# Mirrors data/trajectories_metadata.json as of 2026-08-12 (28 trajectories);
+# add a matching entry here whenever a new trajectory is added there.
+TRAJECTORY_COLORS = {
+    "bev_orbit_area":           ("blue",         (31, 119, 180)),
+    "bev_traverse_area":        ("light_blue",   (174, 199, 232)),
+    "orbit_inward_high":        ("orange",       (255, 127, 14)),
+    "orbit_inward_low":         ("light_orange", (255, 187, 120)),
+    "orbit_inward_mid":         ("green",        (44, 160, 44)),
+    "orbit_outward_high":       ("light_green",  (152, 223, 138)),
+    "orbit_outward_low":        ("purple",       (148, 103, 189)),
+    "orbit_outward_mid":        ("light_purple", (197, 176, 213)),
+    "panorama_360_station_a":   ("brown",        (140, 86, 75)),
+    "panorama_360_station_b":   ("light_brown",  (196, 156, 148)),
+    "panorama_360_station_c":   ("pink",         (227, 119, 194)),
+    "rocket_upward":            ("light_pink",   (247, 182, 210)),
+    "scattered_high":           ("gray",         (127, 127, 127)),
+    "scattered_low":            ("light_gray",   (199, 199, 199)),
+    "scattered_mid":            ("olive",        (188, 189, 34)),
+    "traversal_backward_high":  ("light_olive",  (219, 219, 141)),
+    "traversal_backward_low":   ("teal",         (23, 190, 207)),
+    "traversal_backward_mid":   ("light_teal",   (158, 218, 229)),
+    "traversal_forward_high":   ("lime",         (139, 195, 74)),
+    "traversal_forward_low":    ("light_lime",   (197, 225, 165)),
+    "traversal_forward_mid":    ("sea_green",    (0, 121, 107)),
+    "traversal_left_high":      ("violet",       (94, 53, 177)),
+    "traversal_left_low":       ("gold",         (255, 196, 15)),
+    "traversal_left_mid":       ("sky_blue",     (3, 155, 229)),
+    "traversal_right_high":     ("slate",        (100, 116, 139)),
+    "traversal_right_low":      ("cyan",         (0, 188, 212)),
+    "traversal_right_mid":      ("indigo",       (63, 81, 181)),
+    "traverse_loop_low":        ("chartreuse",   (205, 220, 57)),
+}
+
+# Reserve pool for trajectory names that show up in a scene but have no entry in
+# TRAJECTORY_COLORS above (e.g. a one-off/experimental trajectory not yet added
+# to trajectories_metadata.json). Avoids black and red (red is reserved for
+# error visualisation) and stays visually distinct from TRAJECTORY_COLORS.
+FREE_TRAJECTORY_COLORS = [
+    ("steel_blue",   (70, 130, 180)),
+    ("forest_green", (34, 139, 34)),
+    ("turquoise",    (64, 224, 208)),
+    ("royal_purple", (120, 81, 169)),
+    ("mustard",      (219, 178, 44)),
+    ("peacock",      (0, 150, 136)),
+    ("periwinkle",   (142, 145, 235)),
+    ("moss_green",   (96, 128, 56)),
+    ("denim",        (21, 96, 130)),
+    ("plum",         (142, 69, 133)),
+]
+
+
 class RawDataProcessingPipeline():
     
     def __init__(self, 
                  supported_image_capture_devices:Dict[str, Callable], 
                  supported_video_capture_devices:Dict[str, Callable], 
-                 colors=None):
+                 free_colors=None, trajs_colors=None):
 
         self.supported_image_capture_devices = supported_image_capture_devices
         self.supported_video_capture_devices = supported_video_capture_devices
 
-        if colors is not None:
-            self.COLORS=colors
+        if free_colors is not None:
+            self.FREE_COLORS=free_colors
         else:
-            self.COLORS = {
-                        # red is reserved for error visualisation
-                        # base: Tableau-20 minus red pair
-                        "blue":         ( 31, 119, 180),
-                        "light_blue":   (174, 199, 232),
-                        "orange":       (255, 127,  14),
-                        "light_orange": (255, 187, 120),
-                        "green":        ( 44, 160,  44),
-                        "light_green":  (152, 223, 138),
-                        "purple":       (148, 103, 189),
-                        "light_purple": (197, 176, 213),
-                        "brown":        (140,  86,  75),
-                        "light_brown":  (196, 156, 148),
-                        "pink":         (227, 119, 194),
-                        "light_pink":   (247, 182, 210),
-                        "gray":         (127, 127, 127),
-                        "light_gray":   (199, 199, 199),
-                        "olive":        (188, 189,  34),
-                        "light_olive":  (219, 219, 141),
-                        "teal":         ( 23, 190, 207),
-                        "light_teal":   (158, 218, 229),
-                        # extensions to reach 25
-                        "lime":         (139, 195,  74),
-                        "light_lime":   (197, 225, 165),
-                        "sea_green":    (  0, 121, 107),
-                        "violet":       ( 94,  53, 177),
-                        "gold":         (255, 196,  15),
-                        "sky_blue":     (  3, 155, 229),
-                        "slate":        (100, 116, 139),
-                    }
+            self.FREE_COLORS=FREE_TRAJECTORY_COLORS
+
+        if trajs_colors is not None:
+            self.TRAJS_COLORS = trajs_colors
+        else:
+            self.TRAJS_COLORS = TRAJECTORY_COLORS
 
     def config_processing_pipeline(self, copy_images=True, run_colmap=True, copy_point_cloud=True,
                                    transform_world_coord=False, add_statistics=True, add_camera_center_distance_error=True,
                                    add_camera_center_components_error=True, add_camera_rotation_angle_error=True, add_camera_rotation_euler_error=True,
                                    min_distance_m=0.3, min_rot_degree=10, pos_covariance=[6, 6, 6], max_num_models=4, fov_cal_colmap=True,
                                    wfov_as_fisheye=False, absolute_altitude=True, chamfer_k_neighbor=1,
-                                   chamfer_translation_scale: str = "aabb_diagonal", chamfer_rotation_scale: float = 180.0):
+                                   chamfer_translation_scale: str = "aabb_diagonal", chamfer_rotation_scale: float = 180.0,
+                                   chamfer_rotation_scale_mode: str = "fixed",
+                                   colmap_mapper_num_threads: int = 1, colmap_mapper_random_seed: int = 0,
+                                   colmap_default_random_seed: int = 0, colmap_mapper_max_reg_trials: int = 5,
+                                   colmap_mapper_ba_use_gpu: bool = False):
         self.min_distance_m = min_distance_m
         self.min_rot_degree = min_rot_degree
         self.pos_covariance = pos_covariance
@@ -125,7 +160,13 @@ class RawDataProcessingPipeline():
         self.chamfer_k_neighbor = chamfer_k_neighbor
         self.chamfer_translation_scale = chamfer_translation_scale
         self.chamfer_rotation_scale = chamfer_rotation_scale
-    
+        self.chamfer_rotation_scale_mode = chamfer_rotation_scale_mode
+        self.colmap_mapper_num_threads = colmap_mapper_num_threads
+        self.colmap_mapper_random_seed = colmap_mapper_random_seed
+        self.colmap_default_random_seed = colmap_default_random_seed
+        self.colmap_mapper_max_reg_trials = colmap_mapper_max_reg_trials
+        self.colmap_mapper_ba_use_gpu = colmap_mapper_ba_use_gpu
+
     def configure_scene(self, scene_raw_dir, scene_processed_dir, scene_description_file_name="traj_description.json",
                         scene_processed_json_file_name="scene_data.json", calibration_files_path="/code/data/",
                         colmap_folder_name="PYCOLMAP_soft_prior", trajectories=None):
@@ -242,20 +283,33 @@ class RawDataProcessingPipeline():
                                                frame_name_fn=self._get_frame_name)
                                             
     def populate_colors_for_trajectories(self):
-        
-        colors=iter(self.COLORS.items())
+
+        free_color_index = 0
+
         for trajectory in self.trajectories:
-            
+
             trajectory_name = self._get_trajectory_name(trajectory)
 
             if trajectory_name is None:
                 continue
 
-            color = next(colors)
+            if trajectory_name in self.TRAJS_COLORS:
+                color_name, color_value = self.TRAJS_COLORS[trajectory_name]
+            else:
+                if free_color_index >= len(self.FREE_COLORS):
+                    print("WARNING: ran out of free colors for undefined trajectories; "
+                          "colors will now repeat. Add more entries to FREE_TRAJECTORY_COLORS "
+                          "to avoid this.")
 
-            self.scene_data["trajectories"][trajectory_name]["color_name"] = color[0]
-            self.scene_data["trajectories"][trajectory_name]["color_value"] = color[1]
-    
+                color_name, color_value = self.FREE_COLORS[free_color_index % len(self.FREE_COLORS)]
+                free_color_index += 1
+
+                print(f"Trajectory '{trajectory_name}' has no entry in TRAJECTORY_COLORS; "
+                      f"assigned free color '{color_name}' instead.")
+
+            self.scene_data["trajectories"][trajectory_name]["color_name"] = color_name
+            self.scene_data["trajectories"][trajectory_name]["color_value"] = color_value
+
     # @staticmethod
     #todo needs fixing and change to a static method
     def _get_calibration_file_name(self, trajectory_description):
@@ -451,17 +505,29 @@ class RawDataProcessingPipeline():
                           for traj in trajectories_names \
                           for frame_data in self.scene_data["trajectories"][traj]["frames"] \
                           if "colmap_pose_c2w" in frame_data]
-        
+
+        camera_rotations = [np.array(frame_data["colmap_pose_c2w"])[:3, :3]  \
+                            for traj in trajectories_names \
+                            for frame_data in self.scene_data["trajectories"][traj]["frames"] \
+                            if "colmap_pose_c2w" in frame_data]
+
         scene_diameter = compute_scene_diameter(camera_centers)
         aabb_diagonal = compute_aabb_diagonal(camera_centers)
+        max_rotation_angle = compute_max_rotation_angle(camera_rotations)
 
         if self.chamfer_translation_scale == "scene_diameter":
             translation_scale = scene_diameter
         else:  # "aabb_diagonal"
             translation_scale = aabb_diagonal
 
+        if self.chamfer_rotation_scale_mode == "max_rotation":
+            rotation_scale = max_rotation_angle
+        else:  # "fixed"
+            rotation_scale = self.chamfer_rotation_scale
+
         self.scene_data["scene_diameter"] = round(scene_diameter, 3)
         self.scene_data["aabb_diagonal"] = round(aabb_diagonal, 3)
+        self.scene_data["max_rotation_angle"] = round(max_rotation_angle, 3)
 
         for traj_a in trajectories_names:
             trajectories_matrix = {}
@@ -472,11 +538,11 @@ class RawDataProcessingPipeline():
                                                     traj_a_name=traj_a,
                                                     traj_b_name=traj_b,
                                                     k_neighbor_size=self.chamfer_k_neighbor,
-                                                    pose_distance_fn=lambda pose_a, pose_b, _ts=translation_scale: (
+                                                    pose_distance_fn=lambda pose_a, pose_b, _ts=translation_scale, _rs=rotation_scale: (
                                                         get_pose_tr_distance(pose_a=pose_a,
                                                                              pose_b=pose_b,
                                                                              translation_scale=_ts,
-                                                                             rotation_scale=self.chamfer_rotation_scale)
+                                                                             rotation_scale=_rs)
                                                     ))
                 trajectories_matrix[traj_b]["directed_norm_chamfer_tr_distance"] = round(traj_tr_distance, 3)
 
@@ -495,10 +561,10 @@ class RawDataProcessingPipeline():
                                                     traj_a_name=traj_a,
                                                     traj_b_name=traj_b,
                                                     k_neighbor_size=self.chamfer_k_neighbor,
-                                                    pose_distance_fn=lambda pose_a, pose_b: (
+                                                    pose_distance_fn=lambda pose_a, pose_b, _rs=rotation_scale: (
                                                         get_pose_r_distance(pose_a=pose_a,
                                                                             pose_b=pose_b,
-                                                                            rotation_scale=self.chamfer_rotation_scale)
+                                                                            rotation_scale=_rs)
                                                     ))
                 trajectories_matrix[traj_b]["directed_norm_chamfer_r_distance"] = round(traj_r_distance, 3)
 
@@ -509,9 +575,16 @@ class RawDataProcessingPipeline():
         # populate per frame meta data and calculate scene statistics
         # read the images per folder 
 
-        images_per_folder = read_images_data_from_sub_folders(self.scene_trajectories_dir,
-                                                              create_image_metadata_map=self.image_metadata_map,
-                                                              use_absloute_altitude=self.absolute_altitude)
+        # Fixing the different image refrence bug
+        all_images = read_images_data_from_folder(self.scene_trajectories_dir, 
+                                                  create_image_metadata=_make_metadata_dispatcher(self.image_metadata_map),
+                                                  use_absloute_altitude=self.absolute_altitude)
+
+        images_per_folder = {}
+        for image in all_images:
+            folder_name = str(Path(image['file_name']).parent)
+            image['file_name'] = Path(image['file_name']).name
+            images_per_folder.setdefault(folder_name, []).append(image)
         
         # Now we will loop over the trajectories to read the metadata
         total_frames_number = 0
@@ -664,8 +737,14 @@ class RawDataProcessingPipeline():
             run_colmap_with_soft_priors(dataset_images_dir=Path(self.scene_trajectories_dir),
                                         create_image_metadata=_make_metadata_dispatcher(self.image_metadata_map),
                                         colmap_dir=Path(self.scene_colmap),
+                                        use_absloute_altitude=self.absolute_altitude,
                                         pos_var=self.pos_covariance, update_positions=True, cartesian_system=True,
-                                        camera_mode=CameraMode.PER_FOLDER, max_num_models=self.max_num_models, camera_model_map=traj_camera_map)
+                                        camera_mode=CameraMode.PER_FOLDER, max_num_models=self.max_num_models, camera_model_map=traj_camera_map,
+                                        mapper_num_threads=self.colmap_mapper_num_threads,
+                                        mapper_random_seed=self.colmap_mapper_random_seed,
+                                        default_random_seed=self.colmap_default_random_seed,
+                                        mapper_max_reg_trials=self.colmap_mapper_max_reg_trials,
+                                        mapper_ba_use_gpu=self.colmap_mapper_ba_use_gpu)
             
         # Get the best colmap reconstrcution and read the data
         colmap_spares, registered_images = self.find_reconstruction_with_max_images()

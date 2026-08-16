@@ -27,6 +27,17 @@ def compute_aabb_diagonal(camera_centers):
 
     return scene_scale
 
+def compute_max_rotation_angle(camera_rotations):
+    rotations = list(camera_rotations)
+
+    max_angle = 0.0
+    for i in range(len(rotations)):
+        for j in range(i + 1, len(rotations)):
+            angle = get_rotation_diff(rotations[i], rotations[j])
+            max_angle = max(max_angle, angle)
+
+    return float(max_angle)
+
 def get_pose_t_distance(pose_a:NDArray,
                         pose_b:NDArray,
                         translation_scale:float=1.0, 
