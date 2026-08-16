@@ -24,6 +24,7 @@ from utils.metrics import (
     get_pose_r_distance,
     compute_scene_diameter,
     compute_aabb_diagonal,
+    compute_max_rotation_angle,
 )
 
 from abc import ABC, abstractmethod
@@ -53,6 +54,7 @@ class ReconsModel(ABC):
 
 def calculate_eval_metrics(model:ReconsModel, eval_data:Dict, train_data:Dict,
                            ds_root:str, out_dir:str, normalization_scale: str = "aabb_diagonal",
+                           chamfer_rotation_scale: float = 180.0, chamfer_rotation_scale_mode: str = "fixed",
                            debug=False):
     
     traj_metrics = {}
@@ -90,19 +92,29 @@ def calculate_eval_metrics(model:ReconsModel, eval_data:Dict, train_data:Dict,
     training_camera_centers = [train_pose[:3, 3] for train_pose in training_poses]
     camera_centers = list(training_camera_centers)
 
+    training_camera_rotations = [train_pose[:3, :3] for train_pose in training_poses]
+    camera_rotations = list(training_camera_rotations)
+
     for eval_data_traj in eval_data.values():
         for frame in eval_data_traj:
             camera_centers.append(np.array(frame["transform_matrix"])[:3, 3].astype(np.float32))
+            camera_rotations.append(np.array(frame["transform_matrix"])[:3, :3].astype(np.float32))
 
     training_diameter      = compute_scene_diameter(training_camera_centers)
     training_bbox_diameter = compute_aabb_diagonal(training_camera_centers)
     full_diameter          = compute_scene_diameter(camera_centers)
     full_bbox_diameter     = compute_aabb_diagonal(camera_centers)
+    full_max_rotation_angle = compute_max_rotation_angle(camera_rotations)
 
     if normalization_scale == "scene_diameter":
         translation_scale = full_diameter
     else:  # "aabb_diagonal"
         translation_scale = full_bbox_diameter
+
+    if chamfer_rotation_scale_mode == "max_rotation":
+        rotation_scale = full_max_rotation_angle
+    else:  # "fixed"
+        rotation_scale = chamfer_rotation_scale
 
 
     for traj in eval_data.keys():
@@ -219,8 +231,8 @@ def calculate_eval_metrics(model:ReconsModel, eval_data:Dict, train_data:Dict,
         chamfer_tr = get_traj_directed_chamfer_distance(
             traj_a_poses=eval_traj_poses,
             traj_b_poses=training_poses,
-            pose_distance_fn=lambda pa, pb, _ts=translation_scale: get_pose_tr_distance(
-                pose_a=pa, pose_b=pb, translation_scale=_ts, rotation_scale=180),
+            pose_distance_fn=lambda pa, pb, _ts=translation_scale, _rs=rotation_scale: get_pose_tr_distance(
+                pose_a=pa, pose_b=pb, translation_scale=_ts, rotation_scale=_rs),
         )
         chamfer_t = get_traj_directed_chamfer_distance(
             traj_a_poses=eval_traj_poses,
@@ -231,8 +243,8 @@ def calculate_eval_metrics(model:ReconsModel, eval_data:Dict, train_data:Dict,
         chamfer_r = get_traj_directed_chamfer_distance(
             traj_a_poses=eval_traj_poses,
             traj_b_poses=training_poses,
-            pose_distance_fn=lambda pa, pb: get_pose_r_distance(
-                pose_a=pa, pose_b=pb, rotation_scale=180),
+            pose_distance_fn=lambda pa, pb, _rs=rotation_scale: get_pose_r_distance(
+                pose_a=pa, pose_b=pb, rotation_scale=_rs),
         )
 
         traj_metrics[traj]["directed_chamfer_tr_norm"] = round(chamfer_tr, 4)
@@ -254,6 +266,9 @@ def calculate_eval_metrics(model:ReconsModel, eval_data:Dict, train_data:Dict,
         "translation_scale": round(float(translation_scale), 4),
         "full_scene_diameter": round(float(full_diameter), 4),
         "full_bbox_diagonal": round(float(full_bbox_diameter), 4),
+        "rotation_scale_mode": chamfer_rotation_scale_mode,
+        "rotation_scale": round(float(rotation_scale), 4),
+        "full_max_rotation_angle": round(float(full_max_rotation_angle), 4),
     }
 
     traj_metrics["total_avrg"]["ssim"] /= total_frame_number
@@ -288,7 +303,9 @@ def calculate_eval_metrics(model:ReconsModel, eval_data:Dict, train_data:Dict,
 
 
 def calculate_drone_ds_metrcis(model:ReconsModel, out_dir:str, eval_dataset=None,
-                               normalization_scale: str = "aabb_diagonal", debug=False):
+                               normalization_scale: str = "aabb_diagonal",
+                               chamfer_rotation_scale: float = 180.0, chamfer_rotation_scale_mode: str = "fixed",
+                               debug=False):
     """This function assumes that the dataset is following NS dataset transform.json file style
     If the dataset has been processed to some other format a custom function need to be implemented"""
     
@@ -323,10 +340,12 @@ def calculate_drone_ds_metrcis(model:ReconsModel, out_dir:str, eval_dataset=None
             
     traj_metrics = calculate_eval_metrics(model=model,
                                           eval_data=eval_data,
-                                          train_data=train_data, 
-                                          ds_root=ds_root, 
-                                          out_dir=out_dir, 
+                                          train_data=train_data,
+                                          ds_root=ds_root,
+                                          out_dir=out_dir,
                                           normalization_scale=normalization_scale,
+                                          chamfer_rotation_scale=chamfer_rotation_scale,
+                                          chamfer_rotation_scale_mode=chamfer_rotation_scale_mode,
                                           debug=debug)
 
 
