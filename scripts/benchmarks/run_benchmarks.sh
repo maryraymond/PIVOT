@@ -7,7 +7,7 @@ ROOT_DIR="$1"
 SCENE_NAME="$2"
 
 EXP_NAME="exp_ds_bm_nv"
-sh run_bm_nv_trace.sh ${ROOT_DIR} ${SCENE_NAME} ${EXP_NAME} 60000
+run_bm_nv_trace ${ROOT_DIR} ${SCENE_NAME} ${EXP_NAME} 60000
 
 
 python3 summarize_results/benchmark_table_nv.py \
@@ -20,7 +20,7 @@ python3 summarize_results/benchmark_qualitative_nv.py \
     --out-dir /workspace/outputs/${EXP_NAME}/output_plots 
 EXP_NAME="exp_ds_bm_poses"
 
-sh run_bm_poses_trace.sh ${ROOT_DIR} ${SCENE_NAME} ${EXP_NAME} 30000
+run_bm_poses_trace ${ROOT_DIR} ${SCENE_NAME} ${EXP_NAME} 30000
 
 
 python3 summarize_results/benchmark_table_poses.py \
@@ -33,7 +33,7 @@ python3 summarize_results/benchmark_qualitative_poses.py \
     --out-dir /workspace/outputs/${EXP_NAME}/output_plots 
 
 EXP_NAME="exp_ds_bm_cam_cal"
-sh run_bm_cam_calibr_trace.sh ${ROOT_DIR} ${SCENE_NAME} ${EXP_NAME} 30000
+run_bm_cam_calibr_trace ${ROOT_DIR} ${SCENE_NAME} ${EXP_NAME} 30000
 
 
 python3 summarize_results/src/benchmark_table_cam_calibr.py \
