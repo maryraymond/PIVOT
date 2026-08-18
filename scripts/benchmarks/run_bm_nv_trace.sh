@@ -31,9 +31,10 @@ DST_DS=${SCENE_NAME}_bm_nv
 TIME_STAMP=${SCENE_NAME}_bm_nv
 echo ${TIME_STAMP}
 
-python "$(command -v export_dataset.py)" \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
+  --use-sparse-pc \
   --scene-config '{
     "train": {
       "orbit_inward_low": {
@@ -176,9 +177,10 @@ python "$(command -v export_dataset.py)" \
 # A workaround for training NeRF since evaluation with images of different resolutions is not supported
 DST_DS_NERF=${SCENE_NAME}_bm_nv_nerf
 
-python "$(command -v export_dataset.py)" \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS_NERF} \
+  --use-sparse-pc \
   --scene-config '{
     "train": {
       "orbit_inward_low": {
@@ -297,7 +299,7 @@ python "$(command -v export_dataset.py)" \
 
 echo splatfacto
 ns-train splatfacto --output-dir /workspace/outputs --experiment-name ${EXP_FOLDER} --save-only-latest-checkpoint True \
---vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.random-scale 10 --pipeline.model.camera-optimizer.mode off \
+--vis viewer_legacy --data ${ROOT_DIR}/ns_processed/${DST_DS} --pipeline.model.random-init False --pipeline.model.camera-optimizer.mode off \
 --timestamp ${TIME_STAMP} --max-num-iterations ${NUM_ITERATIONS} --viewer.quit-on-train-completion True --pipeline.datamanager.camera-res-scale-factor 0.5 \
 nerfstudio-data --eval-mode filename
 

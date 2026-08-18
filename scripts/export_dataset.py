@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # PIVOT: Pose, Intrinsics and Viewpoint Oriented Testbed
 # Copyright (c) 2026 Mary Raymond
 # Date: 2026-07-07

@@ -13,9 +13,10 @@ DST_DS=${SCENE_NAME}_bm_03_opt_camera
 TIME_STAMP=${SCENE_NAME}_opt_camera
 echo ${TIME_STAMP}
 
-python "$(command -v export_dataset.py)" \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
+  --use-sparse-pc \
   --scene-config '{
     "train": {
 
@@ -99,9 +100,10 @@ DST_DS=${SCENE_NAME}_bm_03_calib_camera
 TIME_STAMP=${SCENE_NAME}_calib_camera
 echo ${TIME_STAMP}
 
-python "$(command -v export_dataset.py)" \
+python export_dataset.py \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
+  --use-sparse-pc \
   --scene-config '{
     "train": {
       "orbit_inward_low": {
