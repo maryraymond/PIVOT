@@ -119,12 +119,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--chamfer-rotation-scale", type=float, default=180.0,
                         help="Fixed rotation angle (degrees) used to normalise the rotation component of the "
                              "Chamfer distance when --chamfer-rotation-scale-mode=fixed (default: 180).")
-    parser.add_argument("--chamfer-rotation-scale-mode", default="fixed",
+    parser.add_argument("--chamfer-rotation-scale-mode", default="max_rotation",
                         choices=["fixed", "max_rotation"],
                         help="How to determine the rotation scale used to normalise the rotation component "
-                             "of the Chamfer distance: 'fixed' uses --chamfer-rotation-scale (default), "
+                             "of the Chamfer distance: 'fixed' uses --chamfer-rotation-scale , "
                              "'max_rotation' computes the maximum pairwise rotation angle (degrees) across "
-                             "all COLMAP poses in the scene and uses that instead.")
+                             "all COLMAP poses in the scene and uses that instead. (default)")
 
     # --- camera model flags ---
     parser.add_argument("--use-fisheye-for-wfov", action=argparse.BooleanOptionalAction, default=True,

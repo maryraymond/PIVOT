@@ -831,8 +831,9 @@ class SceneVisualization():
 
             trajectories = self.scene_vis_dict["trajectories"].keys()
             for traj_name in trajectories:
-                lines_handler = self.scene_vis_dict["trajectories"][traj_name]["error"]
-                lines_handler.visible = gui_trajs_error_show.value
+                if "error" in self.scene_vis_dict["trajectories"][traj_name]:
+                    lines_handler = self.scene_vis_dict["trajectories"][traj_name]["error"]
+                    lines_handler.visible = gui_trajs_error_show.value
 
 
     def add_frustums_gui(self, traj_name, visible=True):

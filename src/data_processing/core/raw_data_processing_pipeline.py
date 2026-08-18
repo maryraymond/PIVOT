@@ -137,7 +137,7 @@ class RawDataProcessingPipeline():
                                    min_distance_m=0.3, min_rot_degree=10, pos_covariance=[6, 6, 6], max_num_models=4, fov_cal_colmap=True,
                                    wfov_as_fisheye=False, absolute_altitude=True, chamfer_k_neighbor=1,
                                    chamfer_translation_scale: str = "aabb_diagonal", chamfer_rotation_scale: float = 180.0,
-                                   chamfer_rotation_scale_mode: str = "fixed",
+                                   chamfer_rotation_scale_mode: str = "max_rotation",
                                    colmap_mapper_num_threads: int = 1, colmap_mapper_random_seed: int = 0,
                                    colmap_default_random_seed: int = 0, colmap_mapper_max_reg_trials: int = 5,
                                    colmap_mapper_ba_use_gpu: bool = False):

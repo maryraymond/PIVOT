@@ -111,7 +111,7 @@ RUN git clone --branch 3.13.0 https://github.com/colmap/colmap.git --single-bran
 RUN python3.10 -m  pip install --no-cache-dir \
     notebook \
     pycolmap==3.13 \
-    opencv-python-headless \
+    opencv-python-headless==4.14.0.94 \
     scipy \
     viser==1.0.27 \
     plyfile \
