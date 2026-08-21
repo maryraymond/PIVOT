@@ -103,7 +103,6 @@ echo ${TIME_STAMP}
  export_dataset \
   --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
-  
   --scene-config '{
     "train": {
       "orbit_inward_low": {
