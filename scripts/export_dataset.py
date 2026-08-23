@@ -39,7 +39,11 @@ def parse_scene_config(scene_config_arg: str) -> Dict[str, Any]:
             with open(possible_path, "r", encoding="utf-8") as f:
                 return json.load(f)
 
-   
+        raise ValueError(
+            "scene_config must either be:\n"
+            "- a valid JSON string\n"
+            "- or a path to a JSON file"
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:

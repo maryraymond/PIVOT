@@ -6,6 +6,7 @@
 import json
 import cv2
 import numpy as np
+import warnings
 from typing import List
 from numpy.typing import NDArray
 
@@ -70,13 +71,23 @@ def get_poses_from_data(images_data:List)->List[NDArray]:
 
 def get_images_from_data(images_data:List, image_src_dir)->List[NDArray]:
     images =  []
+    missing = []
     for image_data in images_data:
-        images.append(cv2.imread(f"{image_src_dir}/{image_data['file_name']}"))
-    
+        image = cv2.imread(f"{image_src_dir}/{image_data['file_name']}")
+        if image is None:
+            missing.append(image_data['file_name'])
+        images.append(image)
+
+    if missing:
+        warnings.warn(
+            f"get_images_from_data: {len(missing)}/{len(images_data)} image(s) "
+            f"could not be read from '{image_src_dir}': {missing}"
+        )
+
     return images
 
-def get_traj_frames_data(scene_traj_data:List, trajectory_name:str, 
-                         cam_intrinsics_type:str="camera_intrinsic_colmap", 
+def get_traj_frames_data(scene_traj_data:List, trajectory_name:str,
+                         cam_intrinsics_type:str="camera_intrinsic_colmap",
                          c2w_pose_type:str="colmap_pose_c2w"):
     traj_data = scene_traj_data[trajectory_name]
     cam_intrinsics = traj_data[cam_intrinsics_type]
@@ -84,15 +95,24 @@ def get_traj_frames_data(scene_traj_data:List, trajectory_name:str,
     frames = traj_data["frames"]
 
     loaded_frames = []
+    skipped = []
 
     for frame in frames:
         if c2w_pose_type not in frame:
+            skipped.append(frame.get("file_name", "<unknown>"))
             continue
 
         loaded_frame = {"file_name":frame["file_name"],
                         "pose_c2w":frame[c2w_pose_type],
                         "intrinsics":cam_intrinsics}
         loaded_frames.append(loaded_frame)
+
+    if skipped:
+        warnings.warn(
+            f"get_traj_frames_data: {len(skipped)}/{len(frames)} frame(s) in "
+            f"trajectory '{trajectory_name}' missing '{c2w_pose_type}' pose and "
+            f"were skipped: {skipped}"
+        )
 
     return loaded_frames
 

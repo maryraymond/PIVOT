@@ -147,10 +147,18 @@ def write_colmap_cameras_txt(cameras_data:Dict, camera_txt:str)->None:
     cameras_data_colmap = []
     for camera_id, camera_data in cameras_data.items():
 
-        #Params: fx fy cx cy k1 k2 p1 p2
+        if camera_data['camera_type'] == "OPENCV_FISHEYE":
+            #Params: fx fy cx cy k1 k2 k3 k4
+            last_two_params = f"{camera_data['k3']} {camera_data['k4']}"
+        elif camera_data['camera_type'] == "OPENCV":
+            #Params: fx fy cx cy k1 k2 p1 p2
+            last_two_params = f"{camera_data['p1']} {camera_data['p2']}"
+        else:
+            raise ValueError(f"Unsupported camera type {camera_data['camera_type']}")
+
         camera_data_colmap = f"{camera_id} {camera_data['camera_type']} {camera_data['w']} {camera_data['h']} \
 {camera_data['fl_x']} {camera_data['fl_y']} {camera_data['cx']} {camera_data['cy']} \
-{camera_data['k1']} {camera_data['k2']} {camera_data['p1']} {camera_data['p2']} \n"
+{camera_data['k1']} {camera_data['k2']} {last_two_params} \n"
 
         cameras_data_colmap.append(camera_data_colmap)
 
