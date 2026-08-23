@@ -140,7 +140,10 @@ class RawDataProcessingPipeline():
                                    chamfer_rotation_scale_mode: str = "max_rotation",
                                    colmap_mapper_num_threads: int = 1, colmap_mapper_random_seed: int = 0,
                                    colmap_default_random_seed: int = 0, colmap_mapper_max_reg_trials: int = 5,
-                                   colmap_mapper_ba_use_gpu: bool = False):
+                                   colmap_mapper_ba_use_gpu: bool = False,
+                                   colmap_mapper_abs_pose_min_num_inliers: int = 30,
+                                   colmap_mapper_abs_pose_min_inlier_ratio: float = 0.25,
+                                   colmap_mapper_abs_pose_max_error: float = 12):
         self.min_distance_m = min_distance_m
         self.min_rot_degree = min_rot_degree
         self.pos_covariance = pos_covariance
@@ -166,6 +169,9 @@ class RawDataProcessingPipeline():
         self.colmap_default_random_seed = colmap_default_random_seed
         self.colmap_mapper_max_reg_trials = colmap_mapper_max_reg_trials
         self.colmap_mapper_ba_use_gpu = colmap_mapper_ba_use_gpu
+        self.colmap_mapper_abs_pose_min_num_inliers = colmap_mapper_abs_pose_min_num_inliers
+        self.colmap_mapper_abs_pose_min_inlier_ratio = colmap_mapper_abs_pose_min_inlier_ratio
+        self.colmap_mapper_abs_pose_max_error = colmap_mapper_abs_pose_max_error
 
     def configure_scene(self, scene_raw_dir, scene_processed_dir, scene_description_file_name="traj_description.json",
                         scene_processed_json_file_name="scene_data.json", calibration_files_path="/code/data/",
@@ -744,7 +750,10 @@ class RawDataProcessingPipeline():
                                         mapper_random_seed=self.colmap_mapper_random_seed,
                                         default_random_seed=self.colmap_default_random_seed,
                                         mapper_max_reg_trials=self.colmap_mapper_max_reg_trials,
-                                        mapper_ba_use_gpu=self.colmap_mapper_ba_use_gpu)
+                                        mapper_ba_use_gpu=self.colmap_mapper_ba_use_gpu,
+                                        mapper_abs_pose_min_num_inliers=self.colmap_mapper_abs_pose_min_num_inliers,
+                                        mapper_abs_pose_min_inlier_ratio=self.colmap_mapper_abs_pose_min_inlier_ratio,
+                                        mapper_abs_pose_max_error=self.colmap_mapper_abs_pose_max_error)
             
         # Get the best colmap reconstrcution and read the data
         colmap_spares, registered_images = self.find_reconstruction_with_max_images()

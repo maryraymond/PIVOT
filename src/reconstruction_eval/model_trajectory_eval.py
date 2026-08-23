@@ -54,7 +54,7 @@ class ReconsModel(ABC):
 
 def calculate_eval_metrics(model:ReconsModel, eval_data:Dict, train_data:Dict,
                            ds_root:str, out_dir:str, normalization_scale: str = "aabb_diagonal",
-                           chamfer_rotation_scale: float = 180.0, chamfer_rotation_scale_mode: str = "fixed",
+                           chamfer_rotation_scale: float = 180.0, chamfer_rotation_scale_mode: str = "max_rotation",
                            debug=False):
     
     traj_metrics = {}

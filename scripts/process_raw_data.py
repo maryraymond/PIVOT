@@ -91,6 +91,15 @@ def build_parser() -> argparse.ArgumentParser:
                              "re-register an image (default: 5).")
     parser.add_argument("--colmap-mapper-ba-use-gpu", action=argparse.BooleanOptionalAction, default=False,
                         help="COLMAP Mapper.ba_use_gpu: run bundle adjustment on the GPU (default: False).")
+    parser.add_argument("--colmap-mapper-abs-pose-min-num-inliers", type=int, default=30,
+                        help="COLMAP Mapper.abs_pose_min_num_inliers: minimum number of inliers "
+                             "for absolute pose estimation (default: 30).")
+    parser.add_argument("--colmap-mapper-abs-pose-min-inlier-ratio", type=float, default=0.25,
+                        help="COLMAP Mapper.abs_pose_min_inlier_ratio: minimum inlier ratio "
+                             "for absolute pose estimation (default: 0.25).")
+    parser.add_argument("--colmap-mapper-abs-pose-max-error", type=float, default=12,
+                        help="COLMAP Mapper.abs_pose_max_error: maximum reprojection error (px) "
+                             "for absolute pose estimation (default: 12).")
 
     # --- frame selection parameters ---
     parser.add_argument("--min-distance", type=float, default=0.3,
@@ -162,6 +171,9 @@ def main():
         colmap_default_random_seed=args.colmap_default_random_seed,
         colmap_mapper_max_reg_trials=args.colmap_mapper_max_reg_trials,
         colmap_mapper_ba_use_gpu=args.colmap_mapper_ba_use_gpu,
+        colmap_mapper_abs_pose_min_num_inliers=args.colmap_mapper_abs_pose_min_num_inliers,
+        colmap_mapper_abs_pose_min_inlier_ratio=args.colmap_mapper_abs_pose_min_inlier_ratio,
+        colmap_mapper_abs_pose_max_error=args.colmap_mapper_abs_pose_max_error,
         wfov_as_fisheye=args.use_fisheye_for_wfov,
         absolute_altitude=args.absolute_altitude,
         chamfer_k_neighbor=args.chamfer_k_neighbor,

@@ -95,7 +95,9 @@ def run_colmap(dataset_images_dir, colmap_dir,
                camera_mode:CameraMode=CameraMode.SINGLE, max_num_models=3,
                camera_model="OPENCV", input_path='', camera_model_map=None,
                mapper_num_threads=1, mapper_random_seed=0, default_random_seed=0,
-               mapper_max_reg_trials=5, mapper_ba_use_gpu=0):
+               mapper_max_reg_trials=5, mapper_ba_use_gpu=0,
+               mapper_abs_pose_min_num_inliers=30, mapper_abs_pose_min_inlier_ratio=0.25,
+               mapper_abs_pose_max_error=12):
     colmap_db = colmap_dir / "database.db"
     colmap_out_dir = colmap_dir / "sparse"
 
@@ -125,6 +127,9 @@ def run_colmap(dataset_images_dir, colmap_dir,
     pipeline_options = pycolmap.IncrementalPipelineOptions(max_num_models=max_num_models)
     pipeline_options.mapper.num_threads = mapper_num_threads
     pipeline_options.mapper.max_reg_trials = mapper_max_reg_trials
+    pipeline_options.mapper.abs_pose_min_num_inliers = mapper_abs_pose_min_num_inliers
+    pipeline_options.mapper.abs_pose_min_inlier_ratio = mapper_abs_pose_min_inlier_ratio
+    pipeline_options.mapper.abs_pose_max_error = mapper_abs_pose_max_error
     if hasattr(pipeline_options, "ba_use_gpu"):
         pipeline_options.ba_use_gpu = bool(mapper_ba_use_gpu)
     elif hasattr(pipeline_options.mapper, "ba_use_gpu"):
@@ -219,7 +224,9 @@ def pose_prior_mapping(database_path, image_path,
                        output_path, max_num_models=3,
                        input_path='',
                        mapper_num_threads=1, mapper_random_seed=0, default_random_seed=0,
-                       mapper_max_reg_trials=5, mapper_ba_use_gpu=0):
+                       mapper_max_reg_trials=5, mapper_ba_use_gpu=0,
+                       mapper_abs_pose_min_num_inliers=30, mapper_abs_pose_min_inlier_ratio=0.25,
+                       mapper_abs_pose_max_error=12):
     os.makedirs(output_path, exist_ok=True)
 
     cmd = ["colmap", "pose_prior_mapper",
@@ -231,7 +238,10 @@ def pose_prior_mapping(database_path, image_path,
               "--Mapper.random_seed", str(mapper_random_seed),
               "--default_random_seed", str(default_random_seed),
               "--Mapper.max_reg_trials", str(mapper_max_reg_trials),
-              "--Mapper.ba_use_gpu", str(int(mapper_ba_use_gpu))]
+              "--Mapper.ba_use_gpu", str(int(mapper_ba_use_gpu)),
+              "--Mapper.abs_pose_min_num_inliers", str(mapper_abs_pose_min_num_inliers),
+              "--Mapper.abs_pose_min_inlier_ratio", str(mapper_abs_pose_min_inlier_ratio),
+              "--Mapper.abs_pose_max_error", str(mapper_abs_pose_max_error)]
     if input_path != '':
         cmd.append("--input_path")
         cmd.append(str(input_path))
@@ -265,7 +275,10 @@ def run_colmap_with_soft_priors(dataset_images_dir,
                                 mapper_random_seed=0,
                                 default_random_seed=0,
                                 mapper_max_reg_trials=5,
-                                mapper_ba_use_gpu=0):
+                                mapper_ba_use_gpu=0,
+                                mapper_abs_pose_min_num_inliers=30,
+                                mapper_abs_pose_min_inlier_ratio=0.25,
+                                mapper_abs_pose_max_error=12):
     
     colmap_db = colmap_dir / "database.db"
     colmap_out_dir = colmap_dir / sparse_dir_name
@@ -309,10 +322,13 @@ def run_colmap_with_soft_priors(dataset_images_dir,
                        mapper_random_seed=mapper_random_seed,
                        default_random_seed=default_random_seed,
                        mapper_max_reg_trials=mapper_max_reg_trials,
-                       mapper_ba_use_gpu=mapper_ba_use_gpu)
+                       mapper_ba_use_gpu=mapper_ba_use_gpu,
+                       mapper_abs_pose_min_num_inliers=mapper_abs_pose_min_num_inliers,
+                       mapper_abs_pose_min_inlier_ratio=mapper_abs_pose_min_inlier_ratio,
+                       mapper_abs_pose_max_error=mapper_abs_pose_max_error)
 
-    sparse_models = [folder for folder in Path(colmap_out_dir).iterdir() if folder.is_dir()] 
+    sparse_models = [folder for folder in Path(colmap_out_dir).iterdir() if folder.is_dir()]
     for sparse_model in sparse_models:
         convert_model_txt(str(sparse_model))
         convert_model_ply(str(sparse_model))
-    
+
