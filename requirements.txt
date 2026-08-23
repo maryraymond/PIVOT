@@ -1,6 +1,0 @@
-numpy<2.0.0
-opencv-python-headless==4.14.0.94
-open3d
-matplotlib
-pycolmap
-notebook

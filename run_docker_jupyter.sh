@@ -1,22 +1,16 @@
+# PIVOT: Pose, Intrinsics and Viewpoint Oriented Testbed
+# Copyright (c) 2026 Mary Raymond
+# Date: 2026-07-07
+# MIT License — see LICENSE in the project root for details.
 
 
-data_dir=/home/mary/work/data_dir
-cache_dir=/home/mary/work/data_dir/cache
-code_dir=/home/mary/work/repos/drone_3d_dataset
+data_dir=<data_directory_path>
+cache_dir=<cache_directory_path>
+code_dir=<PIVOT_repo_local_directory_path>
 
 
-sudo docker run --gpus all --runtime=nvidia -v $data_dir:/workspace/ -v $cache_dir:/home/user/.cache/ \
--v $code_dir:/code/ -p 7009:7007 -p 8888:8888 --rm -it drone_ds:1.0 bash -c "
-pip install notebook \
-&& pip install pycolmap==3.13 \
-&& pip install opencv-python \
-&& pip install scipy \
-&& sudo apt update \
-&& wget https://exiftool.org/Image-ExifTool-13.57.tar.gz \
-&& tar -xzf Image-ExifTool-13.57.tar.gz \
-&& cd Image-ExifTool-13.57 \
-&& perl Makefile.PL \
-&& sudo make install \
-&& cd /workspace \
-&& jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser
-"
+sudo docker run --gpus all --runtime=nvidia -v $code_dir:/workspace/ -v $code_dir:/code/ -v $data_dir:/data/ -v $cache_dir:/home/user/.cache/ \
+ -p 7009:7007 -p 8889:8888 -p 8080:8080 --rm -it pivot:0.1   bash -c " \
+pip install matplotlib && \
+jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root "
+
