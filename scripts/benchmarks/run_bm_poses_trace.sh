@@ -9,13 +9,13 @@ EXP_FOLDER="$3"
 NUM_ITERATIONS="$4"
 
 # deduced per the experiment
-DST_DS=${SCENE_NAME}_bm_01_measRT
+DST_DS=${SCENE_NAME}_bm_02_measRT
 TIME_STAMP=${SCENE_NAME}_measRT
 
 echo ${TIME_STAMP}
 
  export_dataset \
-  --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
+  --scene-dir ${ROOT_DIR}/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --use-sparse-pc \
   --scene-config '{
@@ -96,12 +96,12 @@ ns-eval --load-config /workspace/outputs/${EXP_FOLDER}/nerfacto/${TIME_STAMP}/co
 
 
 
-DST_DS=${SCENE_NAME}_bm_01_optRT
+DST_DS=${SCENE_NAME}_bm_02_optRT
 TIME_STAMP=${SCENE_NAME}_optRT
 echo ${TIME_STAMP}
 
  export_dataset \
-  --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
+  --scene-dir ${ROOT_DIR}/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --use-sparse-pc \
   --scene-config '{
@@ -180,12 +180,12 @@ ns-eval --load-config /workspace/outputs/${EXP_FOLDER}/nerfacto/${TIME_STAMP}/co
 --render-output-path /workspace/outputs/${EXP_FOLDER}/nerfacto/${TIME_STAMP}/eval_standard
 
 
-DST_DS=${SCENE_NAME}_bm_01_optR_measT
+DST_DS=${SCENE_NAME}_bm_02_optR_measT
 TIME_STAMP=${SCENE_NAME}_optR_measT
 echo ${TIME_STAMP}
 
  export_dataset \
-  --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
+  --scene-dir ${ROOT_DIR}/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --use-sparse-pc \
   --scene-config '{
@@ -265,13 +265,13 @@ ns-eval --load-config /workspace/outputs/${EXP_FOLDER}/nerfacto/${TIME_STAMP}/co
 --render-output-path /workspace/outputs/${EXP_FOLDER}/nerfacto/${TIME_STAMP}/eval_standard
 
 
-DST_DS=${SCENE_NAME}_bm_01_optT_measR
+DST_DS=${SCENE_NAME}_bm_02_optT_measR
 TIME_STAMP=${SCENE_NAME}_optT_measR
 
 echo ${TIME_STAMP}
 
  export_dataset \
-  --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
+  --scene-dir ${ROOT_DIR}/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --use-sparse-pc \
   --scene-config '{

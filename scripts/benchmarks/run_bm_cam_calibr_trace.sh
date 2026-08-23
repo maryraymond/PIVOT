@@ -14,7 +14,7 @@ TIME_STAMP=${SCENE_NAME}_opt_camera
 echo ${TIME_STAMP}
 
  export_dataset \
-  --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
+  --scene-dir ${ROOT_DIR}/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --use-sparse-pc \
   --scene-config '{
@@ -101,7 +101,7 @@ TIME_STAMP=${SCENE_NAME}_calib_camera
 echo ${TIME_STAMP}
 
  export_dataset \
-  --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
+  --scene-dir ${ROOT_DIR}/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --scene-config '{
     "train": {

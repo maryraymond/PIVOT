@@ -27,12 +27,12 @@ SCENE_NAME="$2"
 EXP_FOLDER="$3"
 NUM_ITERATIONS="$4"
 
-DST_DS=${SCENE_NAME}_bm_nv
+DST_DS=${SCENE_NAME}_bm_01_nv
 TIME_STAMP=${SCENE_NAME}_bm_nv
 echo ${TIME_STAMP}
 
  export_dataset \
-  --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
+  --scene-dir ${ROOT_DIR}/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS} \
   --use-sparse-pc \
   --scene-config '{
@@ -178,7 +178,7 @@ echo ${TIME_STAMP}
 DST_DS_NERF=${SCENE_NAME}_bm_nv_nerf
 
  export_dataset \
-  --scene-dir ${ROOT_DIR}/processed/${SCENE_NAME} \
+  --scene-dir ${ROOT_DIR}/${SCENE_NAME} \
   --dst-dir ${ROOT_DIR}/ns_processed/${DST_DS_NERF} \
   --use-sparse-pc \
   --scene-config '{
