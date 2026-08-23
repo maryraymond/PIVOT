@@ -500,8 +500,8 @@ class SceneVisualization():
         )
 
         image = TitlebarImage(
-                image_url_light="http://localhost:8000/dataset_logo.png",
-                image_url_dark="http://localhost:8000/dataset_logo.png",
+                image_url_light="https://raw.githubusercontent.com/maryraymond/PIVOT/main/assets/dataset_logo.png",
+                image_url_dark="https://raw.githubusercontent.com/maryraymond/PIVOT/main/assets/dataset_logo.png",
                 image_alt="Drone Dataset logo Logo",
                 href="https://github.com/maryraymond/drone_3d_dataset",
             )
