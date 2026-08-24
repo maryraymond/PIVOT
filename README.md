@@ -1,602 +1,1127 @@
+<div align="center">
+
 # PIVOT
-**Pose, Intrinsics and Viewpoint Oriented Testbed**
+### Pose, Intrinsics and Viewpoint Oriented Testbed
 
 # 🛸 A Multi-Trajectory Dataset and TestLab for Pose, Intrinsics and Novel Viewpoint Evaluation in Real-World 3D Reconstruction
 
-> **Benchmarking novel view synthesis where it actually matters — not between training poses, but beyond them.**
 
-[![Status](https://img.shields.io/badge/status-in%20development-orange)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-
----
+[![GitHub](https://img.shields.io/badge/GitHub-maryraymond%2FPIVOT-181717?logo=github)](https://github.com/maryraymond/PIVOT)
+[![License: MIT](https://img.shields.io/badge/Code%20License-MIT-blue.svg)](LICENSE)
+[![Dataset License: CC BY-NC 4.0](https://img.shields.io/badge/Dataset%20License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
+[![Docker: GHCR](https://img.shields.io/badge/Docker-GHCR-2496ED?logo=docker&logoColor=white)](#docker-images)
+[![Nerfstudio](https://img.shields.io/badge/Nerfstudio-Integration-purple)](https://github.com/maryraymond/nerfstudio_PIVOT_integration)
+[![Dataset: Hugging Face](https://img.shields.io/badge/Dataset-Hugging%20Face-yellow?logo=huggingface)](#download-the-dataset)
 
 <p align="center">
-  <img src="assets/viewer_1.gif" alt="PIVOT viewer" width="800"/>
+  <img src="assets/viewer_1.gif" alt="PIVOT interactive viewer" width="800"/>
 </p>
+
+</div>
+
+------------------------------------------------------------------------
 
 ## Overview
-This project is the design and development of a real-world drone-captured dataset and tooling ecosystem for research in neural and classical 3D reconstruction. The central goal is to create a benchmark that moves closer to practical deployment conditions than many existing datasets by combining controlled multi-trajectory image capture, real sensor poses, optimized reconstruction poses, multiple intrinsic calibrations, and structured train/test evaluation protocols.
-The dataset is intended to support research in areas such as NeRF, Gaussian Splatting, structure-from-motion, pose refinement, calibration robustness, viewpoint generalization, and scene coverage planning.
 
-<p align="center">
-  <img src="assets/Pivot Components.JPG" alt="PIVOT viewer" width="800"/>
-</p>
+Modern **NeRF**, **3D Gaussian Splatting**, and related reconstruction
+methods are often developed and evaluated under conditions that are
+substantially cleaner than those encountered by robots, drones, and
+autonomous systems in the real world.
 
-The Test bed consists of multiple components
-- The Scene and Trajectory design
-- The processing pipeline for the raw captures
-- A visualization tool
-- Dataset export and backend integration
-- Per trajectory evaluation
-- Camera calibration 
-- Dataset assets
+PIVOT is designed to make those differences **explicit, measurable, and
+reproducible**.
+
+Instead of representing a scene with one reconstruction-friendly camera
+path, PIVOT represents each scene as a collection of deliberately
+different **camera trajectories**. Every processed frame can carry both
+a sensor-derived **measured pose** and a **COLMAP-optimized pose**,
+while trajectories may use calibrated or scene-optimized camera
+intrinsics. This makes it possible to isolate questions such as:
+
+- How much reconstruction quality is gained by replacing measured robot
+  poses with offline-optimized poses?
+- How much does per-scene intrinsic optimization improve over a fixed
+  physical camera calibration?
+- How well does a model generalize to camera paths that are structurally
+  different from its training trajectories?
+- How does reconstruction quality change as the evaluation trajectory
+  moves farther from the training pose distribution?
+- Which capture trajectories are easy or difficult for
+  Structure-from-Motion?
+- Which anchor trajectories could be added to a scene with diffucult
+  trajectories to improve the Structure-from-Motion registeration rates?
+
+🔗 **Repository:** https://github.com/maryraymond/PIVOT
+
+PIVOT includes:
+
+| Component                                | What it provides                                                                                                                                                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dataset design**                 | A scene/trajectory taxonomy covering reconstruction-friendly and robot-like camera motion with a dual-pose representation where Sensor-derived measured poses and COLMAP-optimized poses stored side by side |
+| **Dataset assets**                 | Five real-world scenes captured with a DJI Mini 4 Pro drone                                                                                                                                                   |
+| **Raw-data pipeline**              | Frame sampling, metadata extraction, measured poses, COLMAP soft-prior mapping, statistics, and scene export that allows the user to process his/her own scene capture                                        |
+| **Pose Directed Chamfer Distance** | A normalized trajectory-distance measure for comparing evaluation and training viewpoints                                                                                                                     |
+| **Interactive viewer**             | Viser-based inspection of point clouds, trajectories, pose errors, statistics, and trajectory-distance matrices that facilitate experiments design.                                                           |
+| **Nerfstudio exporter**            | Flexible conversion from PIVOT scenes to Nerfstudio datasets                                                                                                                                                  |
+| **Nerfstudio integration**         | Custom per-trajectory evaluation and benchmark automation                                                                                                                                                     |
+| **Benchmarks design**              | Novel-view generalization, measured-vs-optimized pose, and calibrated-vs-optimized intrinsics                                                                                                                 |
+
+> [!NOTE]
+> PIVOT does **not** propose a new NeRF, Gaussian Splatting, or SfM
+> algorithm. It is a dataset, processing pipeline, evaluation framework,
+> and testbed for studying reconstruction under more realistic capture
+> conditions.
+
+---
 
 ## A Reusable Capture Standard, Not Just a Dataset
 
-This project is not only a dataset — it is a **scene capture specification and open toolchain** that any researcher can use.
+PIVOT is not only a collection of captured scenes. It defines a **scene capture specification and open toolchain** that researchers can reuse for their own data.
 
-We define:
+PIVOT defines:
 
-- A **scene format**: what a scene is, how it is structured, what metadata it must carry
-- A **trajectory protocol**: a named, typed set of flight trajectories with defined properties (motion type, altitude band, camera direction, lens, capture mode)
-- A **processing pipeline**: from raw drone footage to a Nerfstudio-ready dataset, with pose extraction, COLMAP SfM, error metrics, and evaluation — all reproducible
+- a **scene format** describing how a processed scene and its metadata are represented;
+- a **trajectory protocol** with named and typed camera paths covering motion type, altitude, camera direction, lens, and capture mode;
+- a **processing pipeline** from raw captures to measured poses, COLMAP reconstruction, pose-error statistics, trajectory metrics, visualization, and Nerfstudio-ready export.
 
-This means you can:
+This means a researcher can capture a new scene using the PIVOT trajectory protocol, process it into the same representation, compare it with existing PIVOT scenes, and extend the trajectory taxonomy while retaining the same evaluation framework.
 
-1. **Capture your own scene** by following the trajectory protocol with any compatible drone
-2. **Run the pipeline** to get a fully processed, benchmark-ready dataset in the same format
-3. **Compare directly** with other scenes captured under the same spec
-4. **Extend the trajectory set** — the protocol is designed to be open; you can define new trajectory types and integrate them into the same evaluation framework
-
-
-The goal is to make this a **living, multi-scene benchmark** where scenes captured by different researchers in different environments are directly comparable, because they all follow the same trajectory protocol and were processed with the same pipeline.
+The long-term idea is a multi-scene benchmark in which captures from different environments remain comparable because they follow a shared trajectory protocol and processing pipeline.
 
 ---
 
-## Dataset Design
+# Why PIVOT?
 
-### Scene Coverage Strategy
+Typical reconstruction benchmarks can unintentionally couple several
+favorable assumptions:
 
-Each scene is captured with up to **16 distinct trajectory types** spanning:
+```mermaid
+flowchart LR
+    A["Reconstruction-friendly<br/>camera trajectory"] --> B["High overlap"]
+    B --> C["COLMAP succeeds"]
+    C --> D["Optimized poses"]
+    C --> E["Scene-optimized intrinsics"]
+    D --> F["Training"]
+    E --> F
+    F --> G["Held-out frames from<br/>the same trajectory"]
+    G --> H["Interpolation-style<br/>novel-view evaluation"]
+```
 
-- Multiple altitudes (low / mid / high)
-- Multiple motion patterns (orbit, traversal, ascent, scatter, panorama)
-- Multiple camera directions (inward, outward, nadir)
-- Multiple lens types (standard FOV, wide FOV)
-- Both video and photo capture modes
+PIVOT separates these factors:
 
-This gives a rich, non-redundant sampling of the viewpoint space around a scene — and crucially, trajectories that differ **structurally**, not just incrementally.
+```mermaid
+flowchart TB
+    S["Real-world Scene"] --> T["Multiple Capture Trajectories"]
 
-<p align="center">
-  <img src="assets/Multi_trajectory.JPG" alt="PIVOT viewer" width="800"/>
-</p>
+    T --> O["Orbit / reconstruction-friendly"]
+    T --> R["Traversal / robot-like"]
+    T --> X["Extrapolation-oriented<br/>rocket · BEV · panorama · scattered"]
 
-### Trajectory Taxonomy
+    O --> P
+    R --> P
+    X --> P
 
-#### Core Trajectories (captured for every scene)
+    P["Dual Pose Pipeline"] --> M["Measured pose<br/>GPS + IMU + gimbal metadata"]
+    P --> C["COLMAP-optimized pose<br/>with soft position priors"]
 
-| Trajectory | Motion | Altitude | Camera | Lens | Resolution | Aspect | Mode | Path closed |
-|---|---|---|---|---|---|---|---|---|
-| `orbit_inward_low` | Circular orbit | Low | Inward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
-| `orbit_inward_mid` | Circular orbit | Mid | Inward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
-| `orbit_inward_high` | Circular orbit | High | Inward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
-| `traversal_forward_low` | Traversal | Low | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `traversal_backward_low` | Traversal | Low | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `traversal_left_low` | Traversal | Low | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `traversal_right_low` | Traversal | Low | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `traverse_loop_low` | Traverse loop | Low | Along track | Standard | 3840×2160 | 16:9 | Video | ✓ |
-| `bev_orbit_area` | BEV orbit | High | Nadir | Standard | 3840×2160 | 16:9 | Video | ✓ |
-| `rocket_upward` | Vertical ascent | Low → High | Inward-facing | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `scattered_low` | Scattered | Low | Multi-angle | Standard | 3840×2160 | 16:9 | Photos | ✗ |
-| `panorama_360_station_a` | Panorama 360 | Low | Sweep 360° | Standard | 4032×3024 | 4:3 | Photos | ✓ |
-| `panorama_360_station_b` | Panorama 360 | Low | Sweep 360° | Standard | 4032×3024 | 4:3 | Photos | ✓ |
-| `panorama_360_station_c` | Panorama 360 | Low | Sweep 360° | Standard | 4032×3024 | 4:3 | Photos | ✓ |
-| `orbit_outward_low` | Circular orbit | Low | Outward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
-| `bev_traverse_area` | BEV traverse | High | Nadir | Standard | 3840×2160 | 16:9 | Video | ✗ |
+    M --> E["Configurable Dataset Export"]
+    C --> E
+    I1["Calibrated intrinsics"] --> E
+    I2["COLMAP-optimized intrinsics"] --> E
 
-#### Optional Trajectories
+    E --> N["Nerfstudio"]
+    N --> B["PIVOT Benchmarks"]
+```
 
-| Trajectory | Motion | Altitude | Camera | Lens | Resolution | Aspect | Mode | Path closed |
-|---|---|---|---|---|---|---|---|---|
-| `orbit_outward_mid` | Circular orbit | Mid | Outward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
-| `orbit_outward_high` | Circular orbit | High | Outward-facing | Standard | 3840×2160 | 16:9 | Video | ✓ |
-| `traversal_forward_mid` | Traversal | Mid | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `traversal_backward_mid` | Traversal | Mid | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `traversal_left_mid` | Traversal | Mid | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `traversal_right_mid` | Traversal | Mid | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `traversal_forward_high` | Traversal | High | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `traversal_backward_high` | Traversal | High | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `traversal_left_high` | Traversal | High | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `traversal_right_high` | Traversal | High | Along track | Wide | 3840×2160 | 16:9 | Video | ✗ |
-| `scattered_mid` | Scattered | Mid | Multi-angle | Standard | 3840×2160 | 16:9 | Photos | ✗ |
-| `scattered_high` | Scattered | High | Multi-angle | Standard | 3840×2160 | 16:9 | Photos | ✗ |
+The goal is to move evaluation beyond **“Can this model reconstruct a
+scene under ideal capture conditions?”** toward **“How does it behave
+when the poses, intrinsics, trajectories, and requested viewpoints look
+more like a deployed system?”**
 
 ---
 
-## Dual Pose System: Measured vs. Optimized
+# Quick Start
 
-A second research dimension this dataset enables is studying **pose quality** under realistic conditions.
-
-Every captured frame carries **two independent pose estimates**:
-
-|                                 | Measured Pose                           | Optimized Pose                      |
-| ------------------------------- | --------------------------------------- | ----------------------------------- |
-| **Source**                | Drone GPS + IMU + gimbal                | COLMAP Structure-from-Motion        |
-| **What it represents**    | What a real system knows at flight time | Offline-refined reconstruction pose |
-| **Noise characteristics** | GPS/IMU drift, gimbal lag               | SfM reprojection residuals          |
-| **Research value**        | Simulates real deployment               | Ground-truth quality reference      |
-
-This enables experiments such as:
-
-- Does a NeRF trained with noisy GPS poses still generalize to far views?
-- How much does optimized pose quality matter for cross-trajectory generalization?
-- Can you mix optimized rotation with measured translation and still reconstruct well?
-
-<p align="center">
-  <img src="assets/Pose_error.JPG" alt="PIVOT viewer" width="800"/>
-</p>
-
----
-
-## Trajectory Similarity Metric
-
-To support structured train/eval splits and to quantify how different a held-out trajectory is from the training set, PIVOT introduces a **directed pose Chamfer distance** adapted for camera pose sequences.
-
-### Motivation
-
-Not all held-out trajectories are equally distant from training. The metric makes this concrete and computable, enabling: selecting maximally diverse training sets, ranking eval trajectories by distance from training, and understanding the generalization curve.
-
-### Directed Pose Chamfer Distance
-
-For trajectories A and B:
-
-```
-D(A → B) = (1 / |A|) * Σ_{a ∈ A} distance(a, closest pose in B)
-```
-
-Asymmetric by design: answers *"for every pose in A, how far is the closest pose in B?"*
-
-### Pose Distance
-
-Combines two independently normalised components with equal 0.5 weights — result always in [0, 1]:
-
-- **Translation** — normalised by the scene's AABB diagonal or scene diameter
-- **Rotation** — normalised by 180° or the maximum rotation difference observed across all trajectories in the scene
-
-Three variants are computed per trajectory pair:
-
-| Variant | What it measures |
-|---|---|
-| `tr` | Combined translation + rotation distance |
-| `t` | Translation only |
-| `r` | Rotation only |
-
-### Trajectory Metrics Matrix
-
-For each scene, a full N×N matrix is built where each cell shows the directed distance from trajectory A to trajectory B. This gives a complete picture of pairwise trajectory coverage gaps across all trajectories in the scene, and is used to inform which trajectories are seen (training) vs. novel (evaluation).
-
-### Future Extension: Geometry-Aware IoU
-
-A planned extension will complement the pose-based metric with a **geometry-aware** measure: the intersection over union (IoU) of the COLMAP sparse points observed by each trajectory:
-
-```
-IoU(A, B) = |P_A ∩ P_B| / |P_A ∪ P_B|
-```
-
-A low IoU means the two trajectories observe largely different parts of the scene geometry. Combined with the pose Chamfer distance, this gives a trajectory difference matrix with both viewpoint-space and scene-geometry dimensions.
-
----
-
-## Full Processing Pipeline
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         RAW DRONE CAPTURE                               │
-│          Video files + per-frame EXIF metadata (GPS, gimbal)            │
-└───────────────────────┬─────────────────────────────────────────────────┘
-                        │
-                        ▼
-          ┌──────────────────────────────────────────┐
-          │  data_processing/core/video_processing.py│
-          │  Motion-based sampling                   │  ← skips frames with <0.3m movement
-          │  EXIF metadata writing                   │     or <10° rotation change
-          └────────────┬─────────────────────────────┘
-                       │
-                       ▼
-          ┌──────────────────────────────────────────┐
-          │  data_processing/core/metadata_utils.py  │
-          │  data_processing/core/image_processing.py│
-          │  GPS → NED coordinates                   │
-          │  Gimbal → camera pose                    │  ← Measured poses in OpenGL frame
-          │  Calibrated intrinsics                   │
-          └────────────┬─────────────────────────────┘
-                       │
-                       ▼
-          ┌──────────────────────────────────────────┐
-          │  colmap_utils/colmap_processing.py       │
-          │  SfM with soft priors                    │  ← GPS positions as covariance-
-          │  Feature extraction                      │     weighted COLMAP pose priors
-          │  Bundle adjustment                       │
-          └────────────┬─────────────────────────────┘
-                       │
-                       ▼
-          ┌──────────────────────────────────────────┐
-          │  colmap_utils/colmap_conversion.py       │
-          │  COLMAP → NED world                      │  ← Handles all 3 coordinate systems:
-          │  OpenCV → OpenGL cam                     │     NED ↔ OpenCV ↔ OpenGL
-          └────────────┬─────────────────────────────┘
-                       │
-                       ▼
-          ┌──────────────────────────────────────────┐
-          │  data_processing/core/                   │
-          │    raw_data_processing_pipeline.py       │
-          │  Merge measured + optimized              │
-          │  Compute per-frame errors                │  ← scene_data.json
-          │  Translation + rotation diff             │
-          └────────────┬─────────────────────────────┘
-                       │
-                       ▼
-          ┌──────────────────────────────────────────┐
-          │  dataset_export/ns_dataset_creation.py   │
-          │  Trajectory-aware train/eval splits      │  ← Configurable per-trajectory:
-          │  transforms.json export                  │     pose source, intrinsics,
-          │                                          │     frame subsampling
-          └────────────┬─────────────────────────────┘
-                       │
-                       ▼
-          ┌─────────────────────────┐
-          │   Nerfstudio Training   │
-          │  NeRF / GaussianSplat   │
-          │  / any NS method        │
-          └────────────┬────────────┘
-                       │
-                       ▼
-          ┌──────────────────────────────────────────┐
-          │  reconstruction_eval/                    │
-          │    model_trajectory_eval.py              │
-          │  Per-trajectory metrics                  │  ← PSNR / SSIM / LPIPS
-          │  GT vs rendered views                    │     per trajectory, not just global
-          └──────────────────────────────────────────┘
-```
-
----
-
-## Code Components
-
-<p align="center">
-  <img src="assets/SW components dependency.JPG" alt="PIVOT viewer" width="800"/>
-</p>
-
-### `src/data_processing/` — Data Ingestion and Processing
-
-- **`core/raw_data_processing_pipeline.py`** — Pipeline orchestrator (`RawDataProcessingPipeline`). Chains video extraction → pose estimation → COLMAP → error computation → scene_data.json in a single configurable run.
-- **`core/video_processing.py`** — Motion-aware frame extraction from drone video. Skips frames below movement thresholds to reduce redundancy while preserving trajectory coverage.
-- **`core/image_processing.py`** — Image reading and per-frame metadata loading.
-- **`core/metadata_utils.py`** — GPS/gimbal → camera pose conversion. Handles GPS→NED coordinates, gimbal orientation to OpenGL camera matrix, and calibrated intrinsics.
-- **`core/camera_metadata_abc.py`** — Abstract interfaces (`CameraTagsMap`, `GpsTagsMap`, `CameraImageMetaData`) that all capture device implementations must satisfy.
-- **`supported_capture_devices/dji_drone_mini_4.py`** — Concrete metadata implementation for the DJI Mini 4 Pro.
-
-### `src/colmap_utils/` — COLMAP Integration
-
-- **`colmap_processing.py`** — Wraps PyColmap to run Structure-from-Motion with GPS soft-prior mode (covariance-weighted pose priors). Supports per-trajectory camera model assignment.
-- **`colmap_conversion.py`** — Bidirectional conversion between all three coordinate frames: **NED** (drone/geographic), **OpenCV** (COLMAP), and **OpenGL** (NeRF/Nerfstudio). The most intricate module in the codebase.
-
-### `src/utils/` — Shared Math and Utilities
-
-- **`geometry_utils.py`** — Rotation matrices, quaternion conversions, Euler angle differences, and pose error calculations.
-- **`gps_utils.py`** — GPS/NED coordinate conversions and ECEF transforms.
-- **`camera_utils.py`** — FOV calculations for both standard perspective and fisheye (equidistant) camera models.
-- **`metrics.py`** — Pose distance metrics (translation, rotation, combined), directed Chamfer distance between trajectories, and scene normalization (AABB diagonal, scene diameter).
-- **`processing_utils.py`** — Camera data extraction from scene_data.json and trajectory comparison utilities.
-
-### `src/dataset_export/` — Nerfstudio Dataset Creation
-
-- **`ns_dataset_creation.py`** — Creates `transforms.json` for Nerfstudio with fine-grained control over pose source (measured vs. optimized) and intrinsics, independently configurable per trajectory. Supports seen/novel trajectory splits.
-
-### `src/reconstruction_eval/` — Model Evaluation
-
-- **`model_trajectory_eval.py`** — Abstract `ReconsModel` interface and `calculate_eval_metrics` function. Reports PSNR/SSIM/LPIPS and pose Chamfer distances **per trajectory**.
-
-### `src/ns_backend/` — Nerfstudio Backend Integration
-
-- **`ns_models_trajectory_eval.py`** — Nerfstudio-specific `ReconsModel` implementation that queries a trained NS model for rendered images.
-- **`eval.py`** — Evaluation entry point registered as a Nerfstudio CLI script (`ns-eval`).
-
-### `src/visualization/` — 3D Scene Inspector
-
-- **`viser_visualization.py`** — Interactive Viser-based web viewer with color-coded trajectory paths, camera frustums, measured vs. optimized pose overlays, error vector rendering, per-trajectory statistics, and clickable per-camera inspection. See the [Visualization Tool](#-visualization-tool) section below for full details.
-
-### `src/calibration/` — Camera Calibration
-
-- **`camera_calibration.py`** — OpenCV-based camera calibration from a checkerboard image set. Outputs calibration JSON files consumed by the processing pipeline.
-
-### `scripts/` — CLI Entry Points
-
-- **`process_raw_data.py`** — Run the full raw data processing pipeline on a scene.
-- **`export_dataset.py`** — Export a processed scene to Nerfstudio-ready format.
-- **`visualize_scene.py`** — Launch the interactive 3D visualization viewer.
-- **`calibrate_camera.py`** — Run camera calibration.
-
-### `scripts/benchmarks/` — Benchmark Automation
-
-Shell scripts for end-to-end benchmark traces and Python scripts for result aggregation and table generation.
-
----
-
-## Research Use Cases
-
-### 1. 📐 Measuring True Novel View Generalization
-
-Train on one or more trajectory types, evaluate on structurally different held-out trajectories. Plot reconstruction quality as a function of viewpoint distance from training.
-
-```
-Example: Train on orbit_inward_* → Evaluate on traversal_* and bev_*
-         How much does quality drop as views move further from training distribution?
-```
-
-### 2. 🎯 Pose Quality Sensitivity
-
-Swap measured (GPS) vs. optimized (COLMAP) poses at training time, evaluate the same way. Quantify how much pose quality matters for far-view generalization.
-
-```
-Example: Train NeRF with GPS poses vs. COLMAP poses
-         Does pose noise disproportionately hurt cross-trajectory evaluation?
-```
-
-### 3. 🔬 Trajectory Design for Efficient Capture
-
-Given a budget of N training images, which combination of trajectories maximizes generalization to all held-out views? A principled answer to the "which views should I capture?" question.
-
-### 4. 📏 Altitude and Viewpoint Diversity
-
-Orbits at three altitudes — low, mid, high — allow isolating the effect of altitude coverage on reconstruction completeness and novel view quality.
-
-### 5. 🔭 Calibration Sensitivity
-
-Multiple intrinsic sources (factory calibration, OpenCV calibration, COLMAP-optimized) enable ablation studies on how intrinsic accuracy affects reconstruction at various view distances.
-
----
-
-## Coordinate Systems
-
-The project works with three coordinate frames that require careful handling throughout the pipeline:
-
-```
-NED (drone world)          OpenCV (COLMAP)          OpenGL (NeRF)
-──────────────────         ───────────────          ─────────────
-X → North                  X → Right                X → Right
-Y → East                   Y → Down                 Y → Up
-Z → Down                   Z → Forward              Z → Backward
-Origin: GPS ref point      Origin: first camera     Origin: scene center
-```
-
-Conversion functions in `colmap_utils/colmap_conversion.py` handle all transitions between these systems.
-
----
-
-## 🔭 Visualization Tool
-
-The visualization tool is one of the most distinctive components of this project. It is an interactive 3D web viewer (built on [Viser](https://github.com/nerfstudio-project/viser)) that serves three purposes simultaneously: **scene inspection**, **pose error analysis**, and **experiment design**.
-
-### Scene View
-
-The 3D viewer renders the full reconstructed scene together with all trajectory data:
-
-- **Sparse point cloud** from COLMAP reconstruction as the scene backdrop
-- **Color-coded camera frustums** — each trajectory gets a unique color; measured and optimized poses for the same trajectory share the color but differ in style
-- **Red error vectors** — a line drawn from each measured camera position to its corresponding optimized position, making GPS/gimbal drift immediately visible at a glance
-- **Image thumbnails** overlaid on the frustum planes — you can see the actual captured image projected onto each camera's field of view in 3D space
-- **Trajectory path lines** showing capture order and spatial coverage
-
-<p align="center">
-  <img src="assets/Viewer_1.JPG" alt="PIVOT viewer" width="800"/>
-</p>
-
-### Error Statistics
-
-The tool surfaces pose error data both **numerically** and **visually**:
-
-**Trajectory-level summary chart** — a bubble scatter plot with:
-
-- X axis: average translation error (metres) per trajectory
-- Y axis: average rotation error (degrees) per trajectory
-- Bubble size: proportional to number of frames
-- One bubble per trajectory, color-matched to the scene view
-
-This gives an immediate visual overview of which trajectories have well-aligned GPS poses and which have significant drift — critical for deciding which pose source to use in experiments.
-
-<p align="center">
-  <img src="assets/Viewer_5.JPG" alt="PIVOT viewer" width="800"/>
-</p>
-
-**Per-trajectory stats panel** — click any trajectory to see:
-
-- Number of frames / missing frames
-- Frame resolution and camera model (OPENCV / OPENCV\_FISHEYE)
-- Horizontal and vertical FOV
-- Average translation error: total distance + X / Y / Z components (metres)
-- Average rotation error: total + yaw / pitch / roll (degrees)
-
-<p align="center">
-  <img src="assets/Viewer_2.JPG" alt="PIVOT viewer" width="800"/>
-</p>
-
-**Per-camera inspection** — click any individual camera frustum to see:
-
-- Which trajectory and frame it belongs to
-- Pose source (COLMAP optimized vs. measured)
-- Full 6DOF error breakdown: distance error, translation X/Y/Z, rotation total/yaw/pitch/roll
-
-<p align="center">
-  <img src="assets/Viewer_3.JPG" alt="PIVOT viewer" width="800"/>
-</p>
-
-### Interactive Controls
-
-All layers are independently togglable:
-
-| Control               | What it shows/hides                               |
-| --------------------- | ------------------------------------------------- |
-| Per-trajectory toggle | All frustums and paths for that trajectory        |
-| Optimized poses       | COLMAP-optimized camera frustums                  |
-| Measured poses        | GPS/gimbal camera frustums                        |
-| Error vectors         | Red lines between measured and optimized centers  |
-| Point cloud           | COLMAP sparse reconstruction                      |
-| Image thumbnails      | Actual captured images on frustum planes          |
-| Color pickers         | Customize per-trajectory colors for presentations |
-
-### As an Experiment Design Tool
-
-Beyond debugging, the viewer is a practical tool for **planning benchmark experiments before running them**:
-
-- Visually inspect which trajectories are spatially close or far from each other — directly informing which train/eval splits are meaningful
-- Use the error bubble chart to decide whether measured or optimized poses are suitable for a given trajectory
-- Check FOV and camera model differences across trajectories before mixing them in a training set
-- Identify frames with unusually high pose errors that should be excluded
-
----
-
-## Notebooks
-
-| Notebook                                       | Purpose                                                     |
-| ---------------------------------------------- | ----------------------------------------------------------- |
-| `process_video.ipynb`                        | Extract frames from drone video with motion sampling        |
-| `colmap_processing.ipynb`                    | Run COLMAP SfM on an image set                              |
-| `process_dataset_trace_from_raw.ipynb`       | **Main pipeline** — raw capture → scene_data.json   |
-| `create_nerfstudio_from_colmap.ipynb`        | Direct COLMAP → Nerfstudio export                          |
-| `process_to_ns_dataset.ipynb`                | scene_data.json → Nerfstudio with custom trajectory config |
-| `visualize_scene.ipynb`                      | 3D scene visualization with trajectory overlays             |
-| `colmap_processing_soft_prior.ipynb`         | COLMAP with GPS pose priors                                 |
-| `drone_metadata_use_and_visualization.ipynb` | Explore raw drone telemetry                                 |
-| `opencv_camera_calibration.ipynb`            | Camera calibration workflow                                 |
-| `nerftusio_drone_eval.ipynb`                 | Run per-trajectory evaluation metrics                       |
-
----
-
-## Project Status
-
-### ✅ Implemented
-
-- Raw video frame extraction with motion-based sampling
-- GPS/gimbal → camera pose extraction
-- COLMAP SfM with soft GPS priors
-- Measured vs. optimized pose comparison and error metrics
-- scene_data.json: unified scene descriptor format
-- Flexible Nerfstudio dataset export (per-trajectory pose/intrinsic config)
-- Per-trajectory PSNR/SSIM/LPIPS evaluation
-- Directed Chamfer distance for poses to measure the trajectory similarity
-- Interactive 3D visualization (Viser)
-- Camera frustum and trajectory path rendering
-- Docker environment
-
-### 🔄 In Progress
-
-- Add Per trajectory FID
-- Implement trajectory similarity measure using intersection over union of the seen sparse point for the trajectory cameras
-- Multi-scene capture expansion
-- Dense reconstruction support
-- Automated metadata validation
-- Public sample scene release
-
----
-
-## Environment Setup
-
-### Docker (Recommended)
+## 1. Get PIVOT
 
 ```bash
-# Build
-docker build -t drone3d .
-
-# Run with GPU
-bash run_docker.sh
-
-# Run with Jupyter
-bash run_docker_jupyter.sh
+git clone https://github.com/maryraymond/PIVOT.git
+cd PIVOT
 ```
+
+## 2. Pull or build the PIVOT Docker image
+
+The PIVOT container contains the processing, calibration, visualization,
+COLMAP, and dataset-export environment.
+
+### Pull from GHCR
+
+```bash
+docker pull ghcr.io/<OWNER>/<PIVOT_IMAGE>:<TAG>
+```
+
+Example placeholder:
+
+```bash
+docker pull ghcr.io/<OWNER>/pivot:latest
+```
+
+### Or build locally
+
+```bash
+docker build -t pivot:latest .
+```
+
+Run using the repository Docker launcher after configuring the host
+dataset paths:
+
+```bash
+./run_docker.sh
+```
+
+> [!TIP]
+> The container is the recommended environment because the processing
+> pipeline depends on a coordinated COLMAP/Ceres/Python stack and
+> ExifTool.
+
+## 3. Download the dataset
+
+The processed PIVOT dataset will be distributed through **Hugging Face**
+under **CC BY-NC 4.0**.
+
+```text
+Dataset page: https://huggingface.co/datasets/<OWNER>/<PIVOT_DATASET>
+```
+
+**Download instructions — TODO when the Hugging Face repository is
+public**
+
+A typical Hugging Face CLI workflow will look like:
+
+```bash
+huggingface-cli download <OWNER>/<PIVOT_DATASET> \
+    --repo-type dataset \
+    --local-dir /path/to/pivot_dataset
+```
+
+The source code and dataset are licensed separately. See
+[License](#license).
+
+## 4. Visualize a scene
+
+```bash
+python scripts/visualize_scene.py \
+    --dataset-root /path/to/pivot_dataset \
+    --scene-name church \
+    --port 8080
+```
+
+Optionally restrict the displayed trajectories:
+
+```bash
+python scripts/visualize_scene.py \
+    --dataset-root /path/to/pivot_dataset \
+    --scene-name church \
+    --port 8080 \
+    --trajectories orbit_inward_low traversal_forward_low traverse_loop_low \
+    --frustums-visible
+```
+
+Open the viewer URL printed by Viser in your browser.
+
+<p align="center">
+  <img src="assets/vis_overall.gif" alt="PIVOT interactive viewer" width="800"/>
+</p>
 
 ---
 
-## Repository Structure
+# Dataset Assets
 
-```
-drone_3d_dataset/
-├── src/
-│   ├── calibration/
-│   │   └── camera_calibration.py              # OpenCV camera calibration
-│   ├── colmap_utils/
-│   │   ├── colmap_conversion.py               # NED ↔ OpenCV ↔ OpenGL conversions
-│   │   └── colmap_processing.py               # SfM with GPS soft priors
-│   ├── data_processing/
-│   │   ├── core/
-│   │   │   ├── camera_metadata_abc.py         # Abstract metadata interfaces
-│   │   │   ├── image_processing.py            # Image reading and metadata loading
-│   │   │   ├── metadata_utils.py              # GPS/gimbal → camera pose
-│   │   │   ├── raw_data_processing_pipeline.py # Pipeline orchestrator
-│   │   │   └── video_processing.py            # Video frame extraction and sampling
-│   │   └── supported_capture_devices/
-│   │       └── dji_drone_mini_4.py            # DJI Mini 4 Pro capture device
-│   ├── dataset_export/
-│   │   ├── ns_dataset_creation.py             # Nerfstudio transforms.json exporter
-│   │   └── pyproject.toml
-│   ├── ns_backend/
-│   │   ├── eval.py                            # ns-eval entry point
-│   │   └── ns_models_trajectory_eval.py       # Nerfstudio model wrapper
-│   ├── reconstruction_eval/
-│   │   ├── model_trajectory_eval.py           # Per-trajectory PSNR/SSIM/LPIPS
-│   │   └── pyproject.toml
-│   ├── utils/
-│   │   ├── camera_utils.py                    # FOV calculations
-│   │   ├── geometry_utils.py                  # Rotation/pose math
-│   │   ├── gps_utils.py                       # GPS/NED coordinate conversions
-│   │   ├── metrics.py                         # Pose distance and Chamfer metrics
-│   │   ├── processing_utils.py                # Camera data and trajectory utilities
-│   │   └── pyproject.toml
-│   └── visualization/
-│       └── viser_visualization.py             # Interactive 3D scene viewer
-├── scripts/
-│   ├── calibrate_camera.py                    # Camera calibration CLI
-│   ├── export_dataset.py                      # Nerfstudio export CLI
-│   ├── process_raw_data.py                    # Raw data processing CLI
-│   ├── visualize_scene.py                     # Visualization launcher CLI
-│   └── benchmarks/
-│       ├── run_benchmarks.sh                  # Run all benchmark traces
-│       ├── run_bm_cam_calibr_trace.sh         # Camera calibration benchmark
-│       ├── run_bm_nv_trace.sh                 # Novel view benchmark
-│       ├── run_bm_poses_trace.sh              # Pose quality benchmark
-│       ├── summarize_results/                 # Result aggregation scripts
-│       └── pyproject.toml
-├── tests/
-│   ├── test_calibrate_camera.sh
-│   ├── test_export_dataset.sh
-│   ├── test_process_raw_data.sh
-│   └── test_visualize_scene.sh
-├── notebooks/                                 # Jupyter workflow notebooks
-├── data/
-│   ├── trajectories_metadata.json             # Trajectory type definitions
-│   └── *_calibration.json                    # Camera intrinsic calibrations
-├── docs/                                      # Documentation and design docs
-├── Dockerfile
-└── requirements.txt
-```
+PIVOT v1 is built around **five real-world scenes** captured with the DJI Mini 4 Pro. The released processed scenes contain trajectory images, per-frame measured and COLMAP-optimized poses, camera intrinsics, trajectory statistics, scene statistics, and sparse reconstruction assets.
+
+| Scene                | Frames | COLMAP registered | Registration rate | Sparse points | AABB diagonal | Mean reprojection error |
+| -------------------- | -----: | ----------------: | ----------------: | ------------: | ------------: | ----------------------: |
+| `church`           |  1,612 |             1,538 |             95.4% |       882,387 |      28.688 m |                1.064 px |
+| `village_street`   |    TBD |               TBD |               TBD |           TBD |           TBD |                     TBD |
+| `victorian_garden` |    TBD |               TBD |               TBD |           TBD |           TBD |                     TBD |
+| `frontyard`        |    TBD |               TBD |               TBD |           TBD |           TBD |                     TBD |
+| `backyard`         |    TBD |               TBD |               TBD |           TBD |           TBD |                     TBD |
+
+<!-- TODO: Add a five-scene montage when the final release thumbnails are selected. -->
+
+> [!NOTE]
+> PIVOT intentionally records both **total frames** and **COLMAP-registered frames**. Some trajectories are deliberately difficult for SfM, so registration rate is itself useful information rather than only a preprocessing detail.
 
 ---
 
-## Citation
+# Project Details
 
-> Paper in preparation. BibTeX will be added upon publication.
+## The four evaluation gaps
 
-```bibtex
-@misc{pivot2026,
-  title        = {PIVOT: Pose, Intrinsics and Viewpoint Oriented Testbed},
-  author       = {Mary Raymond},
-  year         = {2026},
-  howpublished = {\url{https://github.com/maryraymond/PIVOT.git}},
-  note         = {Accessed: 2027-01-15}
+### 1. Pose source
+
+Offline SfM systems can provide highly accurate optimized poses, but
+deployed robots may instead rely on GPS/IMU, visual(-inertial) odometry,
+SLAM, LiDAR, radar, or another online localization system.
+
+PIVOT stores both:
+
+- `measured_pose_c2w` — derived from capture-device metadata without
+  scene-level pose optimization.
+- `colmap_pose_c2w` — reconstructed by COLMAP using measured positions
+  as **soft position priors**.
+
+This enables controlled measured-vs-optimized pose experiments.
+
+### 2. Camera intrinsics
+
+A benchmark reconstruction can optimize camera intrinsics for every
+scene. A physical robot, however, usually carries a camera with a
+calibration that is reused across scenes.
+
+PIVOT therefore retains both:
+
+- physical/offline **camera calibration** parameters;
+- **COLMAP-optimized** per-scene intrinsics.
+
+### 3. Camera trajectory
+
+Circular inward-looking orbits provide strong overlap and are excellent
+for reconstruction. Real platforms frequently move along traversal paths
+instead.
+
+PIVOT deliberately includes both reconstruction-friendly and robot-like
+motion.
+
+### 4. What counts as a novel view?
+
+A conventional held-out image is often an interpolated frame from a
+trajectory also used for training. In many applications, the desired
+viewpoint lies on an entirely different path.
+
+PIVOT makes the **trajectory itself** a first-class unit of evaluation.
+
+---
+
+# Dataset Design
+
+## Scene requirements
+
+PIVOT v1 scenes are designed around the following principles:
+
+- a meaningful focal object or region around which orbit trajectories
+  can be captured;
+- sufficient architecture/texture rather than a texture-poor landscape;
+- daylight capture for the v1 assets;
+- minimal dynamic content;
+- camera settings chosen to keep the imaging configuration stable during
+  capture.
+
+## Trajectory families
+
+PIVOT combines trajectories that resemble common reconstruction datasets
+with trajectories intended to resemble deployed robotic motion or stress
+extrapolated novel views.
+
+```mermaid
+mindmap
+  root((PIVOT Trajectories))
+    Orbit
+      inward
+      outward
+      low / mid / high
+    Traversal
+      forward
+      backward
+      left
+      right
+      low / mid / high
+    Closed traversal
+      traverse_loop
+    Bird's-eye view
+      bev_orbit
+      bev_traverse
+    Vertical
+      rocket_upward
+    Sparse viewpoints
+      scattered
+    360 capture
+      panorama stations
+```
+
+### Core trajectories
+
+| Trajectory                     | Motion           |    Altitude | Camera direction | Capture |
+| ------------------------------ | ---------------- | ----------: | ---------------- | ------- |
+| `orbit_inward_low`           | orbit            |         low | scene inward     | video   |
+| `orbit_inward_mid`           | orbit            |         mid | scene inward     | video   |
+| `orbit_inward_high`          | orbit            |        high | scene inward     | video   |
+| `traversal_forward_low`      | traversal        |         low | along track      | video   |
+| `traversal_backward_low`     | traversal        |         low | along track      | video   |
+| `traversal_left_low`         | traversal        |         low | along track      | video   |
+| `traversal_right_low`        | traversal        |         low | along track      | video   |
+| `traverse_loop_low`          | closed traversal |         low | along track      | video   |
+| `bev_orbit_area`             | BEV orbit        |        high | nadir            | video   |
+| `rocket_upward`              | vertical ascent  | low → high | scene inward     | video   |
+| `scattered_low`              | scattered        |         low | multi-angle      | photos  |
+| `panorama_360_station_a/b/c` | panorama         |  low → mid | 360° sweep      | photos  |
+
+Optional trajectories extend the same design with outward orbits,
+mid/high traversals, BEV traversal, downward vertical motion, and
+additional scattered viewpoints.
+
+---
+
+# The PIVOT Processing Pipeline
+
+```mermaid
+flowchart TD
+    A["Raw trajectory capture<br/>video or photos"] --> B["Read trajectory metadata"]
+    B --> C{"Video?"}
+    C -- Yes --> D["Sample frames by<br/>translation + rotation"]
+    C -- No --> E["Use captured images"]
+    D --> F["Extract / write EXIF-XMP metadata"]
+    E --> F
+
+    CAL["Camera calibration JSON"] --> G
+    F --> G["Compute measured camera poses<br/>GPS + attitude + gimbal"]
+    G --> H["NED world frame<br/>OpenGL camera convention"]
+
+    H --> I["COLMAP feature extraction"]
+    I --> J["Feature matching"]
+    J --> K["Inject measured position<br/>+ covariance as soft prior"]
+    K --> L["COLMAP pose-prior mapper"]
+    L --> M["Select best reconstruction"]
+
+    M --> N["Optimized poses + intrinsics"]
+    H --> O["Measured poses"]
+    N --> P["Per-frame pose errors"]
+    O --> P
+
+    P --> Q["Trajectory statistics"]
+    Q --> R["Scene statistics"]
+    R --> S["Directed pose Chamfer<br/>trajectory matrix"]
+    S --> T["scene_data.json"]
+    M --> U["Sparse point cloud"]
+    U --> V["Processed PIVOT scene"]
+    T --> V
+```
+
+The resulting processed scene preserves the original trajectory identity
+instead of flattening all images into one undifferentiated capture.
+
+---
+
+# Research Use Cases
+
+PIVOT is designed to support several related research questions:
+
+1. **True novel-view generalization** — train on one set of trajectories and evaluate on structurally different held-out trajectories rather than only interpolated frames.
+2. **Pose-quality sensitivity** — compare reconstruction with measured and COLMAP-optimized pose components.
+3. **Trajectory design for efficient capture** — investigate which combination of camera paths provides the best coverage for a fixed capture budget.
+4. **Altitude and viewpoint diversity** — use low/mid/high and BEV trajectories to study how viewpoint coverage affects reconstruction.
+5. **Calibration sensitivity** — compare reusable physical camera calibration with scene-specific COLMAP-optimized intrinsics.
+
+---
+
+# Pose and Coordinate Conventions
+
+PIVOT's measured-pose path can be summarized as:
+
+```text
+GPS + flight attitude + gimbal attitude
+                │
+                ▼
+        NED world-frame pose
+                │
+                ▼
+   camera-to-world homogeneous transform
+                │
+                ▼
+      OpenGL camera convention
+                │
+                ▼
+        measured_pose_c2w
+```
+
+The processed dataset uses:
+
+- **World frame:** NED (North-East-Down), with `+Z` pointing down.
+- **PIVOT camera pose:** OpenGL-style camera convention.
+
+> [!IMPORTANT]
+> Coordinate-frame conversions are part of the dataset contract. If you
+> add a new capture device, validate pose axes, handedness,
+> yaw/pitch/roll ordering, and camera-forward direction before producing
+> data.
+
+---
+
+# Pose Directed Chamfer Distance
+
+PIVOT uses a **directed** trajectory-distance measure to describe how
+well one set of poses covers another.
+
+For evaluation trajectory (A) and reference/training poses (B):
+
+\[ D(A \rightarrow B) = \frac{1}{\|A\|} \sum\_{a \in A}
+\operatorname{kNNDistance}(a, B) \]
+
+The pose distance combines normalized translation and rotation
+components. Because the metric is directed:
+
+\[ D(A \rightarrow B) \neq D(B \rightarrow A) \]
+
+This is intentional: **“How well does the training pose set cover the
+evaluation trajectory?”** is not the same question as the reverse.
+
+PIVOT computes:
+
+- combined normalized translation + rotation distance;
+- translation-only normalized distance;
+- rotation-only normalized distance.
+
+At scene-processing time, these values are computed across trajectory
+pairs and displayed as a heatmap. During reconstruction evaluation, the
+same idea is used to measure each evaluation trajectory against the
+training pose set.
+
+---
+
+# Usage Manual
+
+## Process your own raw data
+
+A raw scene is driven by a trajectory description and a set of
+trajectory captures.
+
+Example:
+
+```bash
+python scripts/process_raw_data.py \
+    --scene-raw-dir /data/raw/my_scene \
+    --scene-processed-dir /data/processed/my_scene \
+    --calibration-files-path /workspace/data/ \
+    --pos-covariance 2 2 2 \
+    --max-num-models 4 \
+    --chamfer-translation-scale aabb_diagonal \
+    --chamfer-rotation-scale-mode max_rotation
+```
+
+### Raw trajectory description
+
+The trajectory metadata describes properties such as:
+
+```json
+{
+  "traversal_forward_low": {
+    "mandatory_level": "core",
+    "motion_type": "traversal",
+    "altitude_band": "low",
+    "path_closed": false,
+    "camera_direction": "along_track",
+    "lens_type": "wide_fov",
+    "res": [3840, 2160],
+    "aspect_ratio": "16:9",
+    "capture_mode": "video_frames",
+    "capture_device": "dji_drone_mini_4_pro"
+  }
 }
 ```
 
+For video trajectories, the processed scene also records the sampling
+method and thresholds. For example, PIVOT can sample frames after a
+minimum translation or rotation from the last accepted frame.
+
 ---
 
-*Built for real-world drone reconstruction research. If the evaluation setup interests you or you'd like to collaborate on captures, open an issue or reach out directly.*
+## Camera calibration
+
+PIVOT includes checkerboard-based OpenCV calibration for pinhole and
+fisheye cameras.
+
+```bash
+python scripts/calibrate_camera.py \
+    --input /path/to/checkerboard/video_or_folder \
+    --output data/my_camera_calibration.json
+```
+
+For a fisheye camera:
+
+```bash
+python scripts/calibrate_camera.py \
+    --input /path/to/checkerboard/video_or_folder \
+    --output data/my_fisheye_calibration.json \
+    --fisheye
+```
+
+The calibration output is consumed directly by the raw-data pipeline and
+includes the camera model, image dimensions, focal lengths, principal
+point, distortion parameters, and calibration RMS error.
+
+> [!TIP]
+> Use a diverse checkerboard capture: cover the image corners and edges,
+> vary board orientation and distance, avoid motion blur, and inspect
+> reprojection error before relying on the calibration for benchmark
+> experiments.
+
+---
+
+## Extend PIVOT to another capture device
+
+The processing core is designed so capture-device metadata handling can
+be extended beyond the DJI Mini 4 Pro.
+
+A new device integration has three main pieces:
+
+```mermaid
+flowchart LR
+    A["New capture device"] --> B["CameraTagsMap"]
+    A --> C["CameraImageMetaData"]
+    A --> D["CameraVideoMetaData"]
+
+    B --> E["Map device EXIF/XMP fields"]
+    C --> F["Expose image metadata + pose"]
+    D --> G["Expose per-frame video metadata + pose"]
+
+    E --> H["Register device factories"]
+    F --> H
+    G --> H
+    H --> I["RawDataProcessingPipeline"]
+```
+
+### 1. Implement the metadata tag map
+
+Implement the `CameraTagsMap` interface in:
+
+```text
+src/data_processing/core/camera_metadata_abc.py
+```
+
+Map the fields needed by PIVOT, including the device's GPS position and
+camera/platform orientation metadata.
+
+Use the DJI implementation as the reference:
+
+```text
+src/data_processing/supported_capture_devices/dji_drone_mini_4.py
+```
+
+### 2. Implement image/video metadata readers
+
+Implement the relevant `CameraImageMetaData` and `CameraVideoMetaData`
+interfaces and provide the pose conversion expected by the processing
+core.
+
+### 3. Register the device
+
+Add image/video factory callables to the supported-device registries
+used by `RawDataProcessingPipeline`. The registry key must match the
+`capture_device` value in the trajectory description.
+
+---
+
+# Dataset Structure
+
+A processed scene is organized around a `scene_data.json` file,
+trajectory image directories, and the COLMAP reconstruction.
+
+```text
+<PIVOT_DATASET>/
+└── church/
+    ├── scene_data.json
+    ├── trajectories/
+    │   ├── orbit_inward_low/
+    │   │   ├── frame_000000.JPG
+    │   │   ├── frame_000001.JPG
+    │   │   └── ...
+    │   ├── traversal_forward_low/
+    │   └── ...
+    └── PYCOLMAP_soft_prior/
+        └── ... sparse reconstruction assets ...
+```
+
+
+## `scene_data.json`
+
+Conceptually:
+
+```mermaid
+classDiagram
+    class Scene {
+      total_frames_number
+      scene_diameter
+      aabb_diagonal
+      max_rotation_angle
+      colmap_reg_frames_number
+      pointcloud_number
+      mean_track_length
+      mean_reprojection_error_px
+      trajectories
+    }
+
+    class Trajectory {
+      mandatory_level
+      motion_type
+      altitude_band
+      path_closed
+      camera_direction
+      capture_mode
+      capture_device
+      camera_intrinsic_calibration
+      camera_intrinsic_colmap
+      pose_error_statistics
+      trajectory_metrics
+      frames
+    }
+
+    class Frame {
+      file_name
+      measured_pose_c2w
+      colmap_pose_c2w
+      rot_error
+      rot_error_yaw
+      rot_error_pitch
+      rot_error_roll
+      camera_center_error_distance
+      camera_center_error_x
+      camera_center_error_y
+      camera_center_error_z
+    }
+
+    Scene "1" --> "*" Trajectory
+    Trajectory "1" --> "*" Frame
+```
+
+### Example frame
+
+```json
+{
+  "file_name": "trajectories/traversal_forward_low/frame_000000.JPG",
+  "measured_pose_c2w": [
+    [0.9985, -0.0012, -0.0541, 0.0370],
+    [0.0541, 0.0227, 0.9983, 8.6494],
+    [0.0000, -0.9997, 0.0227, 3.5340],
+    [0.0000, 0.0000, 0.0000, 1.0000]
+  ],
+  "colmap_pose_c2w": [
+    [0.8667, -0.0078, -0.4988, -0.2402],
+    [0.4985, -0.0221, 0.8666, 9.9659],
+    [-0.0177, -0.9997, -0.0152, 4.1069],
+    [0.0000, 0.0000, 0.0000, 1.0000]
+  ],
+  "rot_error": 26.93,
+  "camera_center_error_distance": 1.46
+}
+```
+
+This dual representation is central to PIVOT: a downstream experiment
+can choose measured or optimized translation and rotation rather than
+requiring a second dataset conversion pipeline.
+
+---
+
+# Interactive Visualization
+
+The visualization tool is one of PIVOT's main analysis interfaces. Built with **Viser**, it combines **scene inspection**, **pose-error analysis**, and **experiment design** in an interactive browser-based 3D viewer.
+
+```bash
+python scripts/visualize_scene.py \
+    --dataset-root /data/processed \
+    --scene-name church \
+    --port 8080
+```
+
+The scene view can display the COLMAP sparse point cloud together with color-coded trajectory paths and camera frustums. Measured and optimized poses can be shown independently, while error vectors connect corresponding measured and optimized camera centers. Captured images can also be displayed on camera frustum planes.
+
+<p align="center">
+  <img src="assets/vis_1.JPG" alt="PIVOT interactive scene viewer" width="800"/>
+</p>
+
+**1-** Main window that shows the scene sparse point cloud and the trajectory poses if selected
+**2-** The Scene trajectories summary folder containing the trajectories statistics bubble chart and the overall scene statistics
+
+<p align="center">
+  <img src="assets/vis_2.JPG" alt="PIVOT interactive scene viewer" width="800"/>
+</p>
+
+**3-** The trajectories statistics bubble chart could be expanded, and when hovering over each bubble it will show the trajectory name and overall data
+
+<p align="center">
+  <img src="assets/vis_3.JPG" alt="PIVOT interactive scene viewer" width="800"/>
+</p>
+
+**4-** Scene directed pose chamfer distance matrix heatmap across all trajectories in the scene
+**5-** Checkboxes to show or hide the point cloud and world coordinate system, also a slider to increase or decrease the size of the points for the point cloud
+
+<p align="center">
+  <img src="assets/vis_4.JPG" alt="PIVOT interactive scene viewer" width="800"/>
+</p>
+
+**6-** The directed pose chamfer distance heatmap could be expanded and when however over a cell the source and distinction trajectory as well as the metric distance will be shown
+
+<p align="center">
+  <img src="assets/vis_5.JPG" alt="PIVOT interactive scene viewer" width="800"/>
+</p>
+
+**7-** The trajectories folder where you can control which information to show for the trajectories, 3 checkboxes are available to show for all trajectories the measure, optimized poses and the error between them, the hide all button will remove any trajectory data that was added
+
+<p align="center">
+  <img src="assets/vis_6.JPG" alt="PIVOT interactive scene viewer" width="800"/>
+</p>
+
+**8-** each individual trajectory folder could be expanded to select to show measured posed, optimized poses and/or error between them
+**9-** The Trajectory information and statistics will be shown
+
+<p align="center">
+  <img src="assets/vis_7.JPG" alt="PIVOT interactive scene viewer" width="800"/>
+</p>
+
+**10-** By selecting an individual camera frustum, the frustum color will be changed to back (hold ctrl and click anywhere to clear) and that frustum information will be shown in the selected camera window
+
+<p align="center">
+  <img src="assets/vis_8.JPG" alt="PIVOT interactive scene viewer" width="800"/>
+</p>
+
+**11-** For each individual trajectory the default color of the optimized poses and/or the measured poses could be changed, this feature is useful when planning which trajectories to use for testing and which trajectories to use for evaluation (the red and black color is reserved and not used by default for the frustums) the frustums colors could be rested to default using the reste color buttons
+
+---
+
+# Export a PIVOT Scene to Nerfstudio
+
+PIVOT's exporter allows pose and intrinsic choices to be made **per
+trajectory and per split**.
+
+```bash
+python scripts/export_dataset.py \
+    --scene-dir /data/processed/church \
+    --dst-dir /data/ns_processed/church_experiment \
+    --use-sparse-pc \
+    --scene-config '{
+      "train": {
+        "orbit_inward_low": {
+          "c2w_rot_optimized": true,
+          "c2w_trans_optimized": true,
+          "camera_intrinsics_optimized": true,
+          "fill_missing_poses_with_non_optimized": false,
+          "percentage": 0.9
+        }
+      },
+      "eval": {
+        "orbit_inward_low": {
+          "c2w_rot_optimized": true,
+          "c2w_trans_optimized": true,
+          "camera_intrinsics_optimized": true,
+          "fill_missing_poses_with_non_optimized": false
+        }
+      }
+    }'
+```
+
+The `--scene-config` value may describe individual trajectories,
+allowing a single export to construct controlled experiments.
+
+
+## Scene-config fields
+
+| Field                                     | Meaning                                                                      |
+| ----------------------------------------- | ---------------------------------------------------------------------------- |
+| `c2w_rot_optimized`                     | `true`: use COLMAP rotation; `false`: use measured rotation              |
+| `c2w_trans_optimized`                   | `true`: use COLMAP translation; `false`: use measured translation        |
+| `camera_intrinsics_optimized`           | `true`: use COLMAP intrinsics; `false`: use calibrated intrinsics        |
+| `fill_missing_poses_with_non_optimized` | Use the measured pose when a frame has no COLMAP pose instead of dropping it |
+| `percentage`                            | Training-side fraction of the selected trajectory to export                  |
+
+You can therefore create the four pose-source combinations:
+
+| Configuration | Translation | Rotation  |
+| ------------- | ----------- | --------- |
+| **OO**  | optimized   | optimized |
+| **OM**  | optimized   | measured  |
+| **MO**  | measured    | optimized |
+| **MM**  | measured    | measured  |
+
+An `"all"` entry can be used when the same configuration should apply
+across all trajectories in a split.
+
+The exported `transforms.json` stores **per-frame intrinsics**, allowing
+trajectories with different camera configurations or image dimensions to
+coexist in the exported dataset.
+
+---
+
+# Nerfstudio Integration
+
+PIVOT provides a separate Nerfstudio integration environment for:
+
+1. PIVOT-compatible training data;
+2. Nerfacto and Splatfacto benchmark execution;
+3. custom per-trajectory reconstruction evaluation;
+4. trajectory-distance reporting relative to the training pose set.
+
+## Pull the Nerfstudio integration image
+
+```bash
+docker pull ghcr.io/<OWNER>/<PIVOT_NS_IMAGE>:<TAG>
+```
+
+Example placeholder:
+
+```bash
+docker pull ghcr.io/<OWNER>/ns_pivot_integ:latest
+```
+
+## Or build the integration image
+
+
+```bash
+git clone https://github.com/maryraymond/nerfstudio_PIVOT_integration
+cd nerfstudio_PIVOT_integration
+```
+```bash
+docker build . -t ns_pivot_integ:latest
+```
+
+> [!IMPORTANT]
+> The PIVOT and Nerfstudio images serve different purposes. Use the
+> **PIVOT image** for calibration, raw-data processing, visualization,
+> and dataset export. Use the **PIVOT Nerfstudio image** for model
+> training, custom evaluation, and benchmark execution.
+
+---
+
+# Benchmarks
+
+PIVOT defines three benchmark families.
+
+```mermaid
+flowchart LR
+    P["PIVOT Scene"] --> B1["BM-NV<br/>Seen vs unseen trajectories"]
+    P --> B2["BM-Poses<br/>Measured vs optimized poses"]
+    P --> B3["BM-CalibR<br/>Calibrated vs optimized intrinsics"]
+
+    B1 --> M["Nerfacto / Splatfacto"]
+    B2 --> M
+    B3 --> M
+
+    M --> E["Per-trajectory evaluation"]
+    E --> Q["SSIM · PSNR · LPIPS<br/>+ trajectory distance"]
+```
+
+## Benchmark 1 — Novel-view: seen vs unseen trajectories
+
+**Question:** How does reconstruction quality change when evaluation
+moves from held-out frames on training trajectories to entirely
+different camera trajectories?
+
+Training uses a mixture of inward orbits and traversal trajectories.
+Evaluation contains both:
+
+- **seen trajectories:** held-out frames from trajectories represented
+  in training;
+- **unseen trajectories:** complete trajectories not represented in
+  training.
+
+Per-trajectory reconstruction metrics are reported together with
+directed pose Chamfer distance to the training poses.
+
+## Benchmark 2 — Measured vs optimized poses
+
+**Question:** How much does reconstruction depend on offline pose
+optimization?
+
+Four reconstruction conditions isolate translation and rotation:
+
+```text
+OO = optimized translation + optimized rotation
+OM = optimized translation + measured rotation
+MO = measured translation  + optimized rotation
+MM = measured translation  + measured rotation
+```
+
+## Benchmark 3 — Calibrated vs optimized intrinsics
+
+**Question:** How much benefit comes from allowing COLMAP to optimize
+intrinsics for the scene rather than using the camera's precomputed
+calibration?
+
+The pose source is held fixed while the intrinsic source changes.
+
+## Run the benchmarks
+
+The benchmark orchestration lives under:
+
+```text
+scripts/benchmarks/
+```
+
+The repository contains trace scripts for the novel-view, pose-source,
+and camera-calibration experiments.
+
+```bash
+# Run all benchmark traces
+run_benchmarks "dataset_path" "scene_name"
+
+# Or run a benchmark family individually
+run_bm_nv_trace "dataset_path" "scene_name" "output_exp_name" number_of iteration
+run_bm_poses_trace "dataset_path" "scene_name" "output_exp_name" number_of iteration
+run_bm_cam_calibr_trace "dataset_path" "scene_name" "output_exp_name" number_of iteration
+```
+
+<!-- TODO: Add benchmark result diagram/table once final results are frozen -->
+
+> **📊 PLACEHOLDER — Benchmark overview/results figure**
+
+---
+
+# Repository Layout
+
+```text
+PIVOT/
+├── src/
+│   ├── data_processing/
+│   │   ├── core/
+│   │   └── supported_capture_devices/
+│   ├── colmap_utils/
+│   ├── calibration/
+│   ├── utils/
+│   ├── visualization/
+│   ├── dataset_export/
+│   ├── ns_backend/
+│   └── reconstruction_eval/
+├── scripts/
+│   ├── benchmarks/
+│   ├── process_raw_data.py
+│   ├── calibrate_camera.py
+│   ├── export_dataset.py
+│   └── visualize_scene.py
+├── data/
+│   ├── trajectories_metadata.json
+│   └── ... camera calibration files ...
+├── assets/
+│   └── ... logo and documentation assets ...
+├── Dockerfile
+├── run_docker.sh
+├── run_docker_jupyter.sh
+└── LICENSE
+```
+
+---
+
+## Special Thanks
+
+PIVOT would like to extend a special thank you to **Clare County Council (Ireland)** and **Bunratty Castle & Folk Park** and its staff, for their support and cooperation in facilitating the drone captures used for parts of this research.
+
+Their assistance in enabling data collection within the Folk Park provided PIVOT with the opportunity to capture challenging, real-world scenes in a unique historic and beautiful environment. Their time, coordination, and support are sincerely appreciated.
+
+---
+
+# Open-Source Projects
+
+PIVOT builds on an ecosystem of excellent open-source research and
+engineering tools.
+
+- **COLMAP** — Structure-from-Motion, feature matching, pose-prior
+  mapping, and scene reconstruction.
+- **Nerfstudio** — reconstruction training/evaluation framework and the
+  base for the PIVOT backend integration.
+- **Viser** — interactive browser-based 3D visualization used by the
+  PIVOT scene viewer.
+- **ExifTool** — extraction and manipulation of image/video EXIF/XMP
+  metadata.
+- **OpenCV** — checkerboard detection and camera calibration.
+- **PyTorch / TorchMetrics / pytorch-msssim** — model-side evaluation
+  dependencies.
+- **Plotly, Matplotlib, NumPy, pycolmap** and the broader Python
+  scientific ecosystem.
+
+Special thanks to the maintainers and contributors of these projects.
+
+---
+
+# References
+
+- **PIVOT source repository:** [github.com/maryraymond/PIVOT](https://github.com/maryraymond/PIVOT)
+- **COLMAP:** [https://colmap.github.io/](https://colmap.github.io/)
+- **Nerfstudio:** [https://docs.nerf.studio/](https://docs.nerf.studio/)
+- **Viser:** [https://viser.studio/](https://viser.studio/)
+- **ExifTool:** [https://exiftool.org/](https://exiftool.org/)
+- **OpenCV Camera Calibration:** [https://docs.opencv.org/](https://docs.opencv.org/)
+- **Hugging Face Datasets:** [https://huggingface.co/docs/hub/datasets](https://huggingface.co/docs/hub/datasets)
+
+> [!NOTE]
+> A formal bibliography can be added here when the PIVOT paper/preprint
+> and final reference list are frozen.
+
+---
+
+# Citation
+
+If PIVOT is useful in your research, please cite the project.
+
+<!-- TODO: Replace this block with the final arXiv/paper citation when available. -->
+
+```bibtex
+@misc{pivot2026,
+  title        = {PIVOT: A Multi-Trajectory Dataset and Testbed for Pose, Intrinsics and Novel Viewpoint Evaluation in Real-World 3D Reconstruction},
+  author       = {Raymond, Mary},
+  year         = {2026},
+  howpublished = {GitHub repository},
+  note         = {PIVOT: Pose, Intrinsics and Viewpoint Oriented Testbed}
+}
+```
+
+Once a PIVOT preprint is available, **the paper/preprint citation should
+replace the repository-only citation above**.
+
+---
+
+# License
+
+PIVOT separates the software license from the dataset license.
+
+### Source code
+
+The PIVOT source code is released under the **MIT License**. See
+[`LICENSE`](LICENSE).
+
+### Dataset
+
+The PIVOT dataset is planned for release under **Creative Commons
+Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)**.
+
+This permits reuse and adaptation with attribution for non-commercial
+purposes, subject to the full license terms.
+
+> [!IMPORTANT]
+> The dataset license does not automatically apply to third-party
+> software bundled with or used by PIVOT. Those projects retain their
+> own licenses.
+
+---
+
+# Status
+
+PIVOT is being prepared for its first public release.
+
+Before publishing this README, replace the remaining placeholders:
+
+- [ ] PIVOT GHCR image + tag
+- [ ] PIVOT Nerfstudio GHCR image + tag
+- [ ] Hugging Face dataset URL
+- [ ] Top-of-page visualization GIF
+- [ ] Viewer screenshots
+- [ ] Trajectory-design figure
+- [ ] Dataset scene montage
+- [ ] Final benchmark command names
+- [ ] Final paper/arXiv citation, if available
+
+---
+
+<div align="center">
+
+### PIVOT
+
+**Measure the gap between reconstruction benchmarks and real-world
+capture.**
