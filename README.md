@@ -642,7 +642,6 @@ trajectory image directories, and the COLMAP reconstruction.
         └── ... sparse reconstruction assets ...
 ```
 
-
 ## `scene_data.json`
 
 Conceptually:
@@ -740,6 +739,7 @@ The scene view can display the COLMAP sparse point cloud together with color-cod
 </p>
 
 **1-** Main window that shows the scene sparse point cloud and the trajectory poses if selected
+
 **2-** The Scene trajectories summary folder containing the trajectories statistics bubble chart and the overall scene statistics
 
 <p align="center">
@@ -753,6 +753,7 @@ The scene view can display the COLMAP sparse point cloud together with color-cod
 </p>
 
 **4-** Scene directed pose chamfer distance matrix heatmap across all trajectories in the scene
+
 **5-** Checkboxes to show or hide the point cloud and world coordinate system, also a slider to increase or decrease the size of the points for the point cloud
 
 <p align="center">
@@ -772,6 +773,7 @@ The scene view can display the COLMAP sparse point cloud together with color-cod
 </p>
 
 **8-** each individual trajectory folder could be expanded to select to show measured posed, optimized poses and/or error between them
+
 **9-** The Trajectory information and statistics will be shown
 
 <p align="center">
@@ -821,7 +823,6 @@ python scripts/export_dataset.py \
 
 The `--scene-config` value may describe individual trajectories,
 allowing a single export to construct controlled experiments.
-
 
 ## Scene-config fields
 
@@ -874,11 +875,12 @@ docker pull ghcr.io/<OWNER>/ns_pivot_integ:latest
 
 ## Or build the integration image
 
-
 ```bash
 git clone https://github.com/maryraymond/nerfstudio_PIVOT_integration
 cd nerfstudio_PIVOT_integration
+git checkout pivot_integration
 ```
+
 ```bash
 docker build . -t ns_pivot_integ:latest
 ```
