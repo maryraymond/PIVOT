@@ -977,6 +977,73 @@ run_bm_cam_calibr_trace "dataset_path" "scene_name" "output_exp_name" number_of 
 
 ---
 
+# Limitations and Future Work
+
+PIVOT provides a foundation for studying pose quality, camera calibration,
+capture trajectories, and novel-view generalization in real-world 3D
+reconstruction. Several directions remain open for future work.
+
+## Geometry-Aware Trajectory Distance
+
+PIVOT currently uses **Directed Pose Chamfer Distance** to quantify how well
+a set of training camera poses covers an evaluation trajectory. The metric
+compares camera translation and orientation in pose space and therefore
+provides a useful measure of the geometric difference between capture
+trajectories.
+
+However, camera-pose similarity does not necessarily imply similarity in
+**scene visibility**.
+
+For example, two camera poses may be spatially close and have similar
+orientations while being located on opposite sides of an occluding structure.
+Their pose-space distance can therefore be small even though the two cameras
+observe substantially different scene content.
+
+This is a fundamental limitation of a trajectory metric based only on camera
+poses:
+
+> **Pose-space proximity measures where cameras are and how they are oriented,
+> but not what parts of the scene they can actually observe.**
+
+A promising direction for future work is therefore a **geometry-aware
+trajectory similarity metric**.
+
+Given an available scene reconstruction, such as the COLMAP sparse point
+cloud, the visible scene geometry could be projected into each camera. The
+overlap between the geometry observed from two poses could then be estimated,
+for example using an **Intersection over Union (IoU)**-based visibility
+measure.
+
+Conceptually:
+
+    Camera Pose A ──► Visible Scene Geometry A
+                              │
+                              ├── Intersection
+                              │
+    Camera Pose B ──► Visible Scene Geometry B
+                              │
+                              ▼
+                    Visibility / Geometry IoU
+
+Such a metric could distinguish between cameras that are close in pose space
+but observe different geometry, and cameras that are farther apart while
+still observing largely overlapping regions of the scene.
+
+A future PIVOT trajectory metric could therefore combine:
+
+- **translation difference** — how far apart the cameras are;
+- **rotation difference** — how different their viewing orientations are;
+- **visibility overlap** — how much scene geometry is observed by both views.
+
+This would extend the current Directed Pose Chamfer Distance from a
+**pose-space coverage metric** toward a more complete measure of
+**viewpoint and scene-coverage difference**.
+
+The existing Directed Pose Chamfer Distance remains useful because it is
+simple, scene-geometry independent, and can be computed directly from camera
+poses. A geometry-aware metric would instead provide a complementary measure
+when a sufficiently reliable scene reconstruction is available.
+
 # Repository Layout
 
 ```text
