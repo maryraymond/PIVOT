@@ -5,24 +5,187 @@
 
 # 🛸 A Multi-Trajectory Dataset and TestLab for Pose, Intrinsics and Novel Viewpoint Evaluation in Real-World 3D Reconstruction
 
-
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
+[![arXiv](https://img.shields.io/badge/arXiv-PIVOT-B31B1B?logo=arxiv&logoColor=white)](https://github.com/maryraymond/PIVOT/pkgs/container/pivot)
+[![Dataset: Hugging Face](https://img.shields.io/badge/Dataset-Hugging%20Face-yellow?logo=huggingface)](#download-the-dataset)
 [![GitHub](https://img.shields.io/badge/GitHub-maryraymond%2FPIVOT-181717?logo=github)](https://github.com/maryraymond/PIVOT)
 [![License: MIT](https://img.shields.io/badge/Code%20License-MIT-blue.svg)](LICENSE)
 [![Dataset License: CC BY-NC 4.0](https://img.shields.io/badge/Dataset%20License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
-[![Docker: GHCR](https://img.shields.io/badge/Docker-GHCR-2496ED?logo=docker&logoColor=white)](#docker-images)
-[![Nerfstudio](https://img.shields.io/badge/Nerfstudio-Integration-purple)](https://github.com/maryraymond/nerfstudio_PIVOT_integration)
-[![Dataset: Hugging Face](https://img.shields.io/badge/Dataset-Hugging%20Face-yellow?logo=huggingface)](#download-the-dataset)
+[![Docker: GHCR](https://img.shields.io/badge/Docker-GHCR-2496ED?logo=docker&logoColor=white)](https://github.com/maryraymond/PIVOT/pkgs/container/pivot)
+[![Nerfstudio](https://img.shields.io/badge/Nerfstudio-Integration-purple)](https://github.com/maryraymond/nerfstudio_PIVOT_integration/tree/pivot_integration)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
+
+---
+
+# Quick Start
+
+## 1. Get PIVOT
+
+```bash
+git clone https://github.com/maryraymond/PIVOT.git
+cd PIVOT
+```
+
+## 2. Pull or build the PIVOT Docker image
+
+The PIVOT container contains the processing, calibration, visualization,
+COLMAP, and dataset-export environment.
+
+### Pull from GHCR
+
+```bash
+docker pull ghcr.io/maryraymond/pivot:1.0.0
+docker tag ghcr.io/maryraymond/pivot:1.0.0 pivot:1.0.0
+```
+
+### Or pull the latest version
+
+```bash
+docker pull ghcr.io/maryraymond/pivot:latest
+docker tag ghcr.io/maryraymond/pivot:latest pivot:latest
+```
+
+### Or build locally
+
+```bash
+docker build -t pivot:latest .
+```
+
+Run using the repository Docker launcher after configuring the host
+dataset paths:
+
+```bash
+./run_docker.sh
+```
+
+> [!TIP]
+> The container is the recommended environment because the processing
+> pipeline depends on a coordinated COLMAP/Ceres/Python stack and
+> ExifTool.
+
+## 3. Download the dataset
+
+The processed PIVOT dataset is distributed through **Hugging Face**
+under **CC BY-NC 4.0**.
+
+```text
+Dataset page: https://huggingface.co/datasets/MaryRaymond/PIVOT
+```
+
+**Download instructions — TODO when the Hugging Face repository is
+public**
+
+To download the full dataset, run the following in the pivot docker container:
+
+```bash
+	hf download MaryRaymond/PIVOT \
+  --repo-type dataset  \
+  --local-dir /path/to/pivot_dataset
+```
+
+or to download one specific scene (for example church) run
+
+```bash
+	hf download MaryRaymond/PIVOT \
+  --repo-type dataset  \
+	--include "scenes/church/**" \
+  --local-dir /path/to/pivot_dataset
+```
+
+The source code and dataset are licensed separately. See
+[License](#license).
+
+## 4. Visualize a scene
+
+```bash
+python scripts/visualize_scene.py \
+    --dataset-root /path/to/pivot_dataset \
+    --scene-name church \
+    --port 8080
+```
+
+Optionally restrict the displayed trajectories:
+
+```bash
+python scripts/visualize_scene.py \
+    --dataset-root /path/to/pivot_dataset \
+    --scene-name church \
+    --port 8080 \
+    --trajectories orbit_inward_low traversal_forward_low traverse_loop_low \
+    --frustums-visible
+```
+
+Open the viewer URL printed by Viser in your browser.
 
 <p align="center">
   <img src="assets/viewer_1.gif" alt="PIVOT interactive viewer" width="800"/>
 </p>
 
-</div>
+For full features of the visualization tool see section
+**Interactive Visualization** in this document
 
-------------------------------------------------------------------------
+## 5.Export a PIVOT Scene to Nerfstudio DS
 
-## Overview
+PIVOT's exporter allows pose and intrinsic choices to be made **per
+trajectory and per split**.
+
+```bash
+python scripts/export_dataset.py \
+    --scene-dir /data/processed/church \
+    --dst-dir /data/ns_processed/church_experiment \
+    --use-sparse-pc \
+    --scene-config '{
+      "train": {
+        "orbit_inward_low": {
+          "c2w_rot_optimized": true,
+          "c2w_trans_optimized": true,
+          "camera_intrinsics_optimized": true,
+          "fill_missing_poses_with_non_optimized": false,
+          "percentage": 0.9
+        }
+      },
+      "eval": {
+        "orbit_inward_low": {
+          "c2w_rot_optimized": true,
+          "c2w_trans_optimized": true,
+          "camera_intrinsics_optimized": true,
+          "fill_missing_poses_with_non_optimized": false
+        }
+      }
+    }'
+```
+
+The `--scene-config` value may describe individual trajectories,
+allowing a single export to construct controlled experiments.
+
+## Scene-config fields
+
+| Field                                     | Meaning                                                                      |
+| ----------------------------------------- | ---------------------------------------------------------------------------- |
+| `c2w_rot_optimized`                     | `true`: use COLMAP rotation; `false`: use measured rotation              |
+| `c2w_trans_optimized`                   | `true`: use COLMAP translation; `false`: use measured translation        |
+| `camera_intrinsics_optimized`           | `true`: use COLMAP intrinsics; `false`: use calibrated intrinsics        |
+| `fill_missing_poses_with_non_optimized` | Use the measured pose when a frame has no COLMAP pose instead of dropping it |
+| `percentage`                            | Training-side fraction of the selected trajectory to export                  |
+
+You can therefore create the four pose-source combinations:
+
+| Configuration | Translation | Rotation  |
+| ------------- | ----------- | --------- |
+| **OO**  | optimized   | optimized |
+| **OM**  | optimized   | measured  |
+| **MO**  | measured    | optimized |
+| **MM**  | measured    | measured  |
+
+An `"all"` entry can be used when the same configuration should apply
+across all trajectories in a split.
+
+The exported `transforms.json` stores **per-frame intrinsics**, allowing
+trajectories with different camera configurations or image dimensions to
+coexist in the exported dataset.
+
+---
+
+# Project Overview
 
 Modern **NeRF**, **3D Gaussian Splatting**, and related reconstruction
 methods are often developed and evaluated under conditions that are
@@ -51,8 +214,6 @@ intrinsics. This makes it possible to isolate questions such as:
   Structure-from-Motion?
 - Which anchor trajectories could be added to a scene with diffucult
   trajectories to improve the Structure-from-Motion registeration rates?
-
-🔗 **Repository:** https://github.com/maryraymond/PIVOT
 
 PIVOT includes:
 
@@ -141,114 +302,21 @@ more like a deployed system?”**
 
 ---
 
-# Quick Start
-
-## 1. Get PIVOT
-
-```bash
-git clone https://github.com/maryraymond/PIVOT.git
-cd PIVOT
-```
-
-## 2. Pull or build the PIVOT Docker image
-
-The PIVOT container contains the processing, calibration, visualization,
-COLMAP, and dataset-export environment.
-
-### Pull from GHCR
-
-```bash
-docker pull ghcr.io/<OWNER>/<PIVOT_IMAGE>:<TAG>
-```
-
-Example placeholder:
-
-```bash
-docker pull ghcr.io/<OWNER>/pivot:latest
-```
-
-### Or build locally
-
-```bash
-docker build -t pivot:latest .
-```
-
-Run using the repository Docker launcher after configuring the host
-dataset paths:
-
-```bash
-./run_docker.sh
-```
-
-> [!TIP]
-> The container is the recommended environment because the processing
-> pipeline depends on a coordinated COLMAP/Ceres/Python stack and
-> ExifTool.
-
-## 3. Download the dataset
-
-The processed PIVOT dataset will be distributed through **Hugging Face**
-under **CC BY-NC 4.0**.
-
-```text
-Dataset page: https://huggingface.co/datasets/<OWNER>/<PIVOT_DATASET>
-```
-
-**Download instructions — TODO when the Hugging Face repository is
-public**
-
-A typical Hugging Face CLI workflow will look like:
-
-```bash
-huggingface-cli download <OWNER>/<PIVOT_DATASET> \
-    --repo-type dataset \
-    --local-dir /path/to/pivot_dataset
-```
-
-The source code and dataset are licensed separately. See
-[License](#license).
-
-## 4. Visualize a scene
-
-```bash
-python scripts/visualize_scene.py \
-    --dataset-root /path/to/pivot_dataset \
-    --scene-name church \
-    --port 8080
-```
-
-Optionally restrict the displayed trajectories:
-
-```bash
-python scripts/visualize_scene.py \
-    --dataset-root /path/to/pivot_dataset \
-    --scene-name church \
-    --port 8080 \
-    --trajectories orbit_inward_low traversal_forward_low traverse_loop_low \
-    --frustums-visible
-```
-
-Open the viewer URL printed by Viser in your browser.
-
-<p align="center">
-  <img src="assets/vis_overall.gif" alt="PIVOT interactive viewer" width="800"/>
-</p>
-
----
-
 # Dataset Assets
 
-PIVOT v1 is built around **five real-world scenes** captured with the DJI Mini 4 Pro. The released processed scenes contain trajectory images, per-frame measured and COLMAP-optimized poses, camera intrinsics, trajectory statistics, scene statistics, and sparse reconstruction assets.
+PIVOT v1 is built around **five real-world scenes** captured with the DJI Mini 4 Pro drone. The released processed scenes contain trajectory images, per-frame measured and COLMAP-optimized poses, camera intrinsics, trajectory statistics, scene statistics, and sparse reconstruction assets.
 
 | Scene                | Frames | COLMAP registered | Registration rate | Sparse points | AABB diagonal | Mean reprojection error |
 | -------------------- | -----: | ----------------: | ----------------: | ------------: | ------------: | ----------------------: |
-| `church`           |  1,612 |             1,538 |             95.4% |       882,387 |      28.688 m |                1.064 px |
-| `village_street`   |    TBD |               TBD |               TBD |           TBD |           TBD |                     TBD |
-| `victorian_garden` |    TBD |               TBD |               TBD |           TBD |           TBD |                     TBD |
-| `frontyard`        |    TBD |               TBD |               TBD |           TBD |           TBD |                     TBD |
-| `backyard`         |    TBD |               TBD |               TBD |           TBD |           TBD |                     TBD |
+| `church`           |  1,612 |             1,538 |             95.4% |       882,387 |       28.68 m |                1.064 px |
+| `village_street`   |  1,733 |             1,726 |             99.5% |     1,430,217 |       55.12 m |                0.893 px |
+| `victorian_garden` |  1,547 |             1,536 |             99.2% |       767,781 |       44.62 m |                0.928 px |
+| `frontyard`        |    920 |               913 |             99.2% |       719,123 |        13.16m |                1.096 px |
+| `backyard`         |  1,536 |             1,527 |             99.4% |     1,101,253 |         25.3m |                  0.97px |
 
-<!-- TODO: Add a five-scene montage when the final release thumbnails are selected. -->
+> [!Known issues] Known issues
+> - PIVOT dataset v1.0.0 **Church** scene — **rocket_upward**: the rocket-upward trajectory was not successfully registered by COLMAP. The trajectory and its measured poses remain part of the dataset, but COLMAP-optimized poses are unavailable for this trajectory. This is planned to be addressed in an upcoming dataset version.
+> - The opencv camera calibration used in PIVOT dataset v1.0.0 has a bad reprojection error ~4 px this need to be improved in future versions
 
 > [!NOTE]
 > PIVOT intentionally records both **total frames** and **COLMAP-registered frames**. Some trajectories are deliberately difficult for SfM, so registration rate is itself useful information rather than only a preprocessing detail.
@@ -259,10 +327,27 @@ PIVOT v1 is built around **five real-world scenes** captured with the DJI Mini 4
 
 ## The four evaluation gaps
 
-### 1. Pose source
+### 1. Camera trajectory
+
+Circular inward-looking orbits provide strong overlap and are excellent
+for reconstruction. Real platforms frequently move along traversal paths
+instead.
+
+PIVOT deliberately includes both reconstruction-friendly and robot-like
+motion.
+
+### 2. What counts as a novel view?
+
+A conventional held-out image is often an interpolated frame from a
+trajectory also used for training. In many applications, the desired
+viewpoint lies on an entirely different path.
+
+PIVOT makes the **trajectory itself** a first-class unit of evaluation.
+
+### 3. Pose source
 
 Offline SfM systems can provide highly accurate optimized poses, but
-deployed robots may instead rely on GPS/IMU, visual(-inertial) odometry,
+deployed robots may instead rely on GPS/IMU for realtime poses, visual(-inertial) odometry,
 SLAM, LiDAR, radar, or another online localization system.
 
 PIVOT stores both:
@@ -274,7 +359,7 @@ PIVOT stores both:
 
 This enables controlled measured-vs-optimized pose experiments.
 
-### 2. Camera intrinsics
+### 4. Camera intrinsics
 
 A benchmark reconstruction can optimize camera intrinsics for every
 scene. A physical robot, however, usually carries a camera with a
@@ -285,30 +370,44 @@ PIVOT therefore retains both:
 - physical/offline **camera calibration** parameters;
 - **COLMAP-optimized** per-scene intrinsics.
 
-### 3. Camera trajectory
+---
 
-Circular inward-looking orbits provide strong overlap and are excellent
-for reconstruction. Real platforms frequently move along traversal paths
-instead.
+## Pose Directed Chamfer Distance
 
-PIVOT deliberately includes both reconstruction-friendly and robot-like
-motion.
+PIVOT uses a **directed** trajectory-distance measure to describe how
+well one set of poses covers another.
 
-### 4. What counts as a novel view?
+For evaluation trajectory (A) and reference/training poses (B):
 
-A conventional held-out image is often an interpolated frame from a
-trajectory also used for training. In many applications, the desired
-viewpoint lies on an entirely different path.
+\[ D(A \rightarrow B) = \frac{1}{\|A\|} \sum\_{a \in A}
+\operatorname{kNNDistance}(a, B) \]
 
-PIVOT makes the **trajectory itself** a first-class unit of evaluation.
+The pose distance combines normalized translation and rotation
+components. Because the metric is directed:
+
+\[ D(A \rightarrow B) \neq D(B \rightarrow A) \]
+
+This is intentional: **“How well does the training pose set cover the
+evaluation trajectory?”** is not the same question as the reverse.
+
+PIVOT computes:
+
+- combined normalized translation + rotation distance;
+- translation-only normalized distance;
+- rotation-only normalized distance.
+
+At scene-processing time, these values are computed across trajectory
+pairs and displayed as a heatmap. During reconstruction evaluation, the
+same idea is used to measure each evaluation trajectory against the
+training pose set.
 
 ---
 
-# Dataset Design
+## Dataset Design
 
-## Scene requirements
+### Scene requirements
 
-PIVOT v1 scenes are designed around the following principles:
+PIVOT v1.0.0 scenes are designed around the following principles:
 
 - a meaningful focal object or region around which orbit trajectories
   can be captured;
@@ -318,7 +417,7 @@ PIVOT v1 scenes are designed around the following principles:
 - camera settings chosen to keep the imaging configuration stable during
   capture.
 
-## Trajectory families
+### Trajectory families
 
 PIVOT combines trajectories that resemble common reconstruction datasets
 with trajectories intended to resemble deployed robotic motion or stress
@@ -350,7 +449,7 @@ mindmap
       panorama stations
 ```
 
-### Core trajectories
+#### Core trajectories
 
 | Trajectory                     | Motion           |    Altitude | Camera direction | Capture |
 | ------------------------------ | ---------------- | ----------: | ---------------- | ------- |
@@ -373,7 +472,7 @@ additional scattered viewpoints.
 
 ---
 
-# The PIVOT Processing Pipeline
+## The PIVOT Processing Pipeline
 
 ```mermaid
 flowchart TD
@@ -413,7 +512,7 @@ instead of flattening all images into one undifferentiated capture.
 
 ---
 
-# Research Use Cases
+## Research Use Cases
 
 PIVOT is designed to support several related research questions:
 
@@ -425,7 +524,7 @@ PIVOT is designed to support several related research questions:
 
 ---
 
-# Pose and Coordinate Conventions
+## Pose and Coordinate Conventions
 
 PIVOT's measured-pose path can be summarized as:
 
@@ -455,37 +554,6 @@ The processed dataset uses:
 > add a new capture device, validate pose axes, handedness,
 > yaw/pitch/roll ordering, and camera-forward direction before producing
 > data.
-
----
-
-# Pose Directed Chamfer Distance
-
-PIVOT uses a **directed** trajectory-distance measure to describe how
-well one set of poses covers another.
-
-For evaluation trajectory (A) and reference/training poses (B):
-
-\[ D(A \rightarrow B) = \frac{1}{\|A\|} \sum\_{a \in A}
-\operatorname{kNNDistance}(a, B) \]
-
-The pose distance combines normalized translation and rotation
-components. Because the metric is directed:
-
-\[ D(A \rightarrow B) \neq D(B \rightarrow A) \]
-
-This is intentional: **“How well does the training pose set cover the
-evaluation trajectory?”** is not the same question as the reverse.
-
-PIVOT computes:
-
-- combined normalized translation + rotation distance;
-- translation-only normalized distance;
-- rotation-only normalized distance.
-
-At scene-processing time, these values are computed across trajectory
-pairs and displayed as a heatmap. During reconstruction evaluation, the
-same idea is used to measure each evaluation trajectory against the
-training pose set.
 
 ---
 
@@ -529,6 +597,64 @@ The trajectory metadata describes properties such as:
   }
 }
 ```
+
+Raw trajector folder structue example
+
+```text
+church/
+├── panorama_360_station_a/
+│   ├── PANO_0001.JPG
+│   ├── PANO_0002.JPG
+│   ├── PANO_0003.JPG
+│   ├── PANO_0004.JPG
+│   └── ...
+├── panorama_360_station_b/
+│   ├── PANO_0001.JPG
+│   ├── PANO_0002.JPG
+│   ├── PANO_0003.JPG
+│   └── ...
+├── panorama_360_station_c/
+│   ├── PANO_0001.JPG
+│   ├── PANO_0002.JPG
+│   ├── PANO_0003.JPG
+│   └── ...
+├── scattered_high/
+│   ├── DJI_0001.JPG
+│   ├── DJI_0002.JPG
+│   ├── DJI_0003.JPG
+│   └── ...
+├── scattered_low/
+│   ├── DJI_0001.JPG
+│   ├── DJI_0002.JPG
+│   ├── DJI_0003.JPG
+│   └── ...
+├── scattered_mid/
+│   ├── DJI_0001.JPG
+│   ├── DJI_0002.JPG
+│   ├── DJI_0003.JPG
+│   └── ...
+├── bev_orbit_area.MP4
+├── bev_traverse_area.MP4
+├── orbit_inward_high.MP4
+├── orbit_inward_low.MP4
+├── orbit_inward_mid.MP4
+├── orbit_outward_high.MP4
+├── orbit_outward_low.MP4
+├── orbit_outward_mid.MP4
+├── rocket_upward.MP4
+├── trajectories_metadata.json
+├── traversal_backward_low.MP4
+├── traversal_backward_mid.MP4
+├── traversal_forward_low.MP4
+├── traversal_forward_mid.MP4
+├── traversal_left_low.MP4
+├── traversal_left_mid.MP4
+├── traversal_right_low.MP4
+├── traversal_right_mid.MP4
+└── ...
+```
+
+The trajectories_metadata.json file could be found at (https://github.com/maryraymond/PIVOT/blob/main/data/trajectories_metadata.json) the trajectory description could be edited as required
 
 For video trajectories, the processed scene also records the sampling
 method and thresholds. For example, PIVOT can sample frames after a
@@ -790,68 +916,6 @@ The scene view can display the COLMAP sparse point cloud together with color-cod
 
 ---
 
-# Export a PIVOT Scene to Nerfstudio
-
-PIVOT's exporter allows pose and intrinsic choices to be made **per
-trajectory and per split**.
-
-```bash
-python scripts/export_dataset.py \
-    --scene-dir /data/processed/church \
-    --dst-dir /data/ns_processed/church_experiment \
-    --use-sparse-pc \
-    --scene-config '{
-      "train": {
-        "orbit_inward_low": {
-          "c2w_rot_optimized": true,
-          "c2w_trans_optimized": true,
-          "camera_intrinsics_optimized": true,
-          "fill_missing_poses_with_non_optimized": false,
-          "percentage": 0.9
-        }
-      },
-      "eval": {
-        "orbit_inward_low": {
-          "c2w_rot_optimized": true,
-          "c2w_trans_optimized": true,
-          "camera_intrinsics_optimized": true,
-          "fill_missing_poses_with_non_optimized": false
-        }
-      }
-    }'
-```
-
-The `--scene-config` value may describe individual trajectories,
-allowing a single export to construct controlled experiments.
-
-## Scene-config fields
-
-| Field                                     | Meaning                                                                      |
-| ----------------------------------------- | ---------------------------------------------------------------------------- |
-| `c2w_rot_optimized`                     | `true`: use COLMAP rotation; `false`: use measured rotation              |
-| `c2w_trans_optimized`                   | `true`: use COLMAP translation; `false`: use measured translation        |
-| `camera_intrinsics_optimized`           | `true`: use COLMAP intrinsics; `false`: use calibrated intrinsics        |
-| `fill_missing_poses_with_non_optimized` | Use the measured pose when a frame has no COLMAP pose instead of dropping it |
-| `percentage`                            | Training-side fraction of the selected trajectory to export                  |
-
-You can therefore create the four pose-source combinations:
-
-| Configuration | Translation | Rotation  |
-| ------------- | ----------- | --------- |
-| **OO**  | optimized   | optimized |
-| **OM**  | optimized   | measured  |
-| **MO**  | measured    | optimized |
-| **MM**  | measured    | measured  |
-
-An `"all"` entry can be used when the same configuration should apply
-across all trajectories in a split.
-
-The exported `transforms.json` stores **per-frame intrinsics**, allowing
-trajectories with different camera configurations or image dimensions to
-coexist in the exported dataset.
-
----
-
 # Nerfstudio Integration
 
 PIVOT provides a separate Nerfstudio integration environment for:
@@ -864,13 +928,15 @@ PIVOT provides a separate Nerfstudio integration environment for:
 ## Pull the Nerfstudio integration image
 
 ```bash
-docker pull ghcr.io/<OWNER>/<PIVOT_NS_IMAGE>:<TAG>
+docker pull ghcr.io/maryraymond/nerfstudio_pivot_integ:1.0.0
+docker tag ghcr.io/maryraymond/nerfstudio_pivot_integ:1.0.0 pivot:1.0.0
 ```
 
-Example placeholder:
+Or pull the latest version
 
 ```bash
-docker pull ghcr.io/<OWNER>/ns_pivot_integ:latest
+docker pull ghcr.io/maryraymond/nerfstudio_pivot_integ:latest
+docker tag ghcr.io/maryraymond/nerfstudio_pivot_integ:latest pivot:latest
 ```
 
 ## Or build the integration image
@@ -882,7 +948,14 @@ git checkout pivot_integration
 ```
 
 ```bash
-docker build . -t ns_pivot_integ:latest
+docker build . -t nerfstudio_pivot_integ:latest
+```
+
+Run using the repository Docker launcher after configuring the host
+dataset paths:
+
+```bash
+./run_docker.sh
 ```
 
 > [!IMPORTANT]
@@ -961,6 +1034,8 @@ scripts/benchmarks/
 The repository contains trace scripts for the novel-view, pose-source,
 and camera-calibration experiments.
 
+inside nerfstudio_pivot_integ docker container run
+
 ```bash
 # Run all benchmark traces
 run_benchmarks "dataset_path" "scene_name"
@@ -971,9 +1046,7 @@ run_bm_poses_trace "dataset_path" "scene_name" "output_exp_name" number_of itera
 run_bm_cam_calibr_trace "dataset_path" "scene_name" "output_exp_name" number_of iteration
 ```
 
-<!-- TODO: Add benchmark result diagram/table once final results are frozen -->
-
-> **📊 PLACEHOLDER — Benchmark overview/results figure**
+for the benchmark results please check the PIVOT paper
 
 ---
 
@@ -1078,7 +1151,7 @@ PIVOT/
 
 ---
 
-## Special Thanks
+# Special Thanks
 
 PIVOT would like to extend a special thank you to **Clare County Council (Ireland)** and **Bunratty Castle & Folk Park** and its staff, for their support and cooperation in facilitating the drone captures used for parts of this research.
 
@@ -1119,10 +1192,6 @@ Special thanks to the maintainers and contributors of these projects.
 - **OpenCV Camera Calibration:** [https://docs.opencv.org/](https://docs.opencv.org/)
 - **Hugging Face Datasets:** [https://huggingface.co/docs/hub/datasets](https://huggingface.co/docs/hub/datasets)
 
-> [!NOTE]
-> A formal bibliography can be added here when the PIVOT paper/preprint
-> and final reference list are frozen.
-
 ---
 
 # Citation
@@ -1140,9 +1209,6 @@ If PIVOT is useful in your research, please cite the project.
   note         = {PIVOT: Pose, Intrinsics and Viewpoint Oriented Testbed}
 }
 ```
-
-Once a PIVOT preprint is available, **the paper/preprint citation should
-replace the repository-only citation above**.
 
 ---
 
@@ -1167,24 +1233,6 @@ purposes, subject to the full license terms.
 > The dataset license does not automatically apply to third-party
 > software bundled with or used by PIVOT. Those projects retain their
 > own licenses.
-
----
-
-# Status
-
-PIVOT is being prepared for its first public release.
-
-Before publishing this README, replace the remaining placeholders:
-
-- [ ] PIVOT GHCR image + tag
-- [ ] PIVOT Nerfstudio GHCR image + tag
-- [ ] Hugging Face dataset URL
-- [ ] Top-of-page visualization GIF
-- [ ] Viewer screenshots
-- [ ] Trajectory-design figure
-- [ ] Dataset scene montage
-- [ ] Final benchmark command names
-- [ ] Final paper/arXiv citation, if available
 
 ---
 

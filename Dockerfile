@@ -8,9 +8,12 @@ ARG OS_VERSION
 ARG USER_ID
 
 # metainformation
-LABEL org.opencontainers.image.version = "0.1.18"
-LABEL org.opencontainers.image.source = "https://github.com/nerfstudio-project/nerfstudio"
-LABEL org.opencontainers.image.licenses = "Apache License 2.0"
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.source="https://github.com/maryraymond/PIVOT"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.title="PIVOT"
+LABEL org.opencontainers.image.description="PIVOT 3D reconstruction dataset processing, calibration, visualization, and export environment"
+LABEL org.opencontainers.image.documentation="https://github.com/maryraymond/PIVOT#readme"
 LABEL org.opencontainers.image.base.name="docker.io/library/nvidia/cuda:${CUDA_VERSION}-devel-ubuntu${OS_VERSION}"
 
 # Variables used at build time.
@@ -117,7 +120,8 @@ RUN python3.10 -m  pip install --no-cache-dir \
     plyfile \
     plotly \
     openpyxl \
-    matplotlib
+    matplotlib \
+    huggingface_hub
 
 # Install ExifTool
 WORKDIR /tmp
