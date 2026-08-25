@@ -14,7 +14,14 @@
 [![Nerfstudio](https://img.shields.io/badge/Nerfstudio-Integration-purple)](https://github.com/maryraymond/nerfstudio_PIVOT_integration/tree/pivot_integration)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 
----
+<p align="center">
+  <img src="assets/vis_overall.gif" alt="PIVOT interactive viewer" width="800"/>
+</p>
+
+</div>
+
+------------------------------------------------------------------------
+
 
 # Quick Start
 
