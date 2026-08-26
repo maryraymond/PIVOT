@@ -328,6 +328,48 @@ PIVOT v1 is built around **five real-world scenes** captured with the DJI Mini 4
 > [!NOTE]
 > PIVOT intentionally records both **total frames** and **COLMAP-registered frames**. Some trajectories are deliberately difficult for SfM, so registration rate is itself useful information rather than only a preprocessing detail.
 
+## Scene Trajectory Coverage
+
+Legend: ✅ Available · ❌ Not available · ⚠️ Available, but COLMAP registration failed
+
+### Mandatory trajectories
+
+| Trajectory | Church | Village Street | Victorian Garden | Frontyard | Backyard |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `orbit_inward_low` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `orbit_inward_mid` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `orbit_inward_high` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `traversal_forward_low` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `traversal_backward_low` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `traversal_left_low` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `traversal_right_low` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `traverse_loop_low` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `bev_orbit_area` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `rocket_upward` | ⚠️ | ✅ | ✅ | ✅ | ✅ |
+| `scattered_low` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `panorama_360_station_a` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `panorama_360_station_b` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `panorama_360_station_c` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `orbit_outward_low` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `bev_traverse_area` | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+### Optional trajectories
+
+| Trajectory | Church | Village Street | Victorian Garden | Frontyard | Backyard |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `orbit_outward_mid` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `orbit_outward_high` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `traversal_forward_mid` | ✅ | ❌ | ❌ | ✅ | ✅ |
+| `traversal_backward_mid` | ✅ | ❌ | ❌ | ✅ | ✅ |
+| `traversal_left_mid` | ✅ | ❌ | ❌ | ✅ | ✅ |
+| `traversal_right_mid` | ✅ | ❌ | ❌ | ✅ | ✅ |
+| `traversal_forward_high` | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `traversal_backward_high` | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `traversal_left_high` | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `traversal_right_high` | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `scattered_mid` | ✅ | ❌ | ✅ | ✅ | ✅ |
+| `scattered_high` | ✅ | ✅ | ✅ | ✅ | ✅ |
+
 ---
 
 # Project Details
