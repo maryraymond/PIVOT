@@ -15,7 +15,7 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 
 <p align="center">
-  <img src="assets/vis_overall.gif" alt="PIVOT interactive viewer" width="800"/>
+  <img src="assets/pivot_all_4_fps.gif" alt="PIVOT interactive viewer" width="800"/>
 </p>
 
 </div>
@@ -124,7 +124,7 @@ python scripts/visualize_scene.py \
 Open the viewer URL printed by Viser in your browser.
 
 <p align="center">
-  <img src="assets/viewer_1.gif" alt="PIVOT interactive viewer" width="800"/>
+  <img src="assets/vis_overall.gif" alt="PIVOT interactive viewer" width="800"/>
 </p>
 
 For full features of the visualization tool see section
