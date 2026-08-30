@@ -5,7 +5,7 @@
 
 # 🛸 A Multi-Trajectory Dataset and TestLab for Pose, Intrinsics and Novel Viewpoint Evaluation in Real-World 3D Reconstruction
 
-[![arXiv](https://img.shields.io/badge/arXiv-PIVOT-B31B1B?logo=arxiv&logoColor=white)](https://github.com/maryraymond/PIVOT/pkgs/container/pivot)
+[![arXiv](https://img.shields.io/badge/arXiv-PIVOT-B31B1B?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2608.25401)
 [![Dataset: Hugging Face](https://img.shields.io/badge/Dataset-Hugging%20Face-yellow?logo=huggingface)](#download-the-dataset)
 [![GitHub](https://img.shields.io/badge/GitHub-maryraymond%2FPIVOT-181717?logo=github)](https://github.com/maryraymond/PIVOT)
 [![License: MIT](https://img.shields.io/badge/Code%20License-MIT-blue.svg)](LICENSE)
@@ -1250,12 +1250,14 @@ If PIVOT is useful in your research, please cite the project.
 <!-- TODO: Replace this block with the final arXiv/paper citation when available. -->
 
 ```bibtex
-@misc{pivot2026,
-  title        = {PIVOT: A Multi-Trajectory Dataset and Testbed for Pose, Intrinsics and Novel Viewpoint Evaluation in Real-World 3D Reconstruction},
-  author       = {Raymond, Mary},
-  year         = {2026},
-  howpublished = {GitHub repository},
-  note         = {PIVOT: Pose, Intrinsics and Viewpoint Oriented Testbed}
+@misc{raymond2026pivotmultitrajectorydatasettestbed,
+      title={PIVOT: A Multi-Trajectory Dataset and Testbed for Pose, Intrinsics, and Novel Viewpoint Evaluation in Real-World 3D Reconstruction}, 
+      author={Mary Raymond},
+      year={2026},
+      eprint={2608.25401},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2608.25401}, 
 }
 ```
 
